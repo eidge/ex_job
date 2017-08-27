@@ -18,7 +18,7 @@ defmodule Rex.QueueTest do
       {:ok, queue} = Queue.enqueue(queue, 1)
       {:ok, queue} = Queue.enqueue(queue, 2)
       assert {:ok, queue, 1} = Queue.dequeue(queue)
-      assert {:ok, queue, 2} = Queue.dequeue(queue)
+      assert {:ok, _queue, 2} = Queue.dequeue(queue)
     end
 
     test "returns error if queue is empty" do

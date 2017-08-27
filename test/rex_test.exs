@@ -1,5 +1,5 @@
 defmodule RexTest do
-  use ExUnit.Case
+  use ExUnit.Case, async: true
   doctest Rex
 
   defmodule TestJob do
@@ -9,7 +9,9 @@ defmodule RexTest do
   end
 
   test "processes a job" do
-    :ok = Rex.enqueue(TestJob)
+    {:ok, _pid} = Rex.QueueManager.TempDispatcher.start_link
+    {:ok, _} = Rex.QueueManager.start_link
+    :ok = Rex.enqueue(TestJob, [self()])
     assert_receive :test_job_ack
   end
 end
