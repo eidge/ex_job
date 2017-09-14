@@ -13,7 +13,9 @@ defmodule Rex.QueueManager.Dispatcher do
 
   def handle_cast({:dispatch, queue_manager, job_module}, state) do
     {:ok, arguments} = QueueManager.dequeue(queue_manager, job_module)
-    apply(job_module, :perform, arguments)
+    spawn fn ->
+      apply(job_module, :perform, arguments)
+    end
     {:noreply, state}
   end
 end

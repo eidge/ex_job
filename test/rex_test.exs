@@ -3,8 +3,8 @@ defmodule RexTest do
   doctest Rex
 
   defmodule TestJob do
-    def perform(test_id) do
-      send(test_id, :test_job_ack)
+    def perform(test_pid) do
+      send(test_pid, :test_job_ack)
     end
   end
 

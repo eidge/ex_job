@@ -3,10 +3,6 @@ defmodule Rex.QueueManagerTest do
 
   alias Rex.QueueManager
 
-  defmodule NoOpDispatcher do
-    def dispatch(_queue_manager, _queue), do: nil
-  end
-
   defmodule TestDispatcher do
     use GenServer
 
@@ -66,6 +62,10 @@ defmodule Rex.QueueManagerTest do
   end
 
   describe "dequeue/2" do
+    defmodule NoOpDispatcher do
+      def dispatch(_queue_manager, _queue), do: nil
+    end
+
     setup do
       {:ok, queue_manager} = QueueManager.start_link([dispatcher: NoOpDispatcher], [])
       {:ok, queue_manager: queue_manager}

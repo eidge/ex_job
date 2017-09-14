@@ -30,11 +30,11 @@ defmodule Rex.QueueManager do
   end
 
   def handle_call({:enqueue, queue_name, value}, _from, state) do
-    {queue, state} = get_or_create_queue(state, queue_name)
+    {queue, state} = get_or_build_queue(state, queue_name)
     {:ok, queue} = Queue.enqueue(queue, value)
-    new_state = put_in(state, [:queues, queue_name], queue)
-    dispatch(new_state, queue_name)
-    {:reply, :ok, new_state}
+    state = put_in(state, [:queues, queue_name], queue)
+    dispatch(state, queue_name)
+    {:reply, :ok, state}
   end
 
   def handle_call({:dequeue, queue_name}, _from, state) do
@@ -52,7 +52,7 @@ defmodule Rex.QueueManager do
     {:reply, {:ok, state.queues}, state}
   end
 
-  defp get_or_create_queue(state, queue_name) do
+  defp get_or_build_queue(state, queue_name) do
     queue = Map.get(state.queues, queue_name)
     if queue do
       {queue, state}
