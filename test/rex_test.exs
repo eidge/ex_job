@@ -9,8 +9,7 @@ defmodule RexTest do
   end
 
   test "processes a job" do
-    {:ok, _pid} = Rex.QueueManager.TempDispatcher.start_link
-    {:ok, _} = Rex.QueueManager.start_link
+    {:ok, _} = Rex.QueueManager.Supervisor.start_link
     :ok = Rex.enqueue(TestJob, [self()])
     assert_receive :test_job_ack
   end

@@ -1,5 +1,5 @@
 defmodule Rex.QueueTest do
-  use ExUnit.Case
+  use ExUnit.Case, async: true
 
   alias Rex.Queue
 

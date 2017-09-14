@@ -1,25 +1,8 @@
 defmodule Rex.QueueManager do
   use GenServer
 
-  alias __MODULE__
   alias Rex.Queue
-
-  defmodule TempDispatcher do
-    use GenServer
-
-    def start_link, do: GenServer.start_link(__MODULE__, nil, name: __MODULE__)
-    def init(nil), do: {:ok, nil}
-
-    def dispatch(queue_manager, job_module) do
-      :ok = GenServer.cast(__MODULE__, {:dispatch, queue_manager, job_module})
-    end
-
-    def handle_cast({:dispatch, queue_manager, job_module}, state) do
-      {:ok, arguments} = QueueManager.dequeue(queue_manager, job_module)
-      apply(job_module, :perform, arguments)
-      {:noreply, state}
-    end
-  end
+  alias Rex.QueueManager.Dispatcher
 
   def start_link(args \\ [], opts \\ [name: __MODULE__]) do
     GenServer.start_link(__MODULE__, args, opts)
@@ -30,7 +13,7 @@ defmodule Rex.QueueManager do
   end
 
   defp initial_state(args) do
-    dispatcher = Keyword.get(args, :dispatcher, TempDispatcher)
+    dispatcher = Keyword.get(args, :dispatcher, Dispatcher)
     %{queues: Map.new, dispatcher: dispatcher}
   end
 

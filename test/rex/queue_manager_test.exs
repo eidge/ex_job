@@ -30,7 +30,6 @@ defmodule Rex.QueueManagerTest do
   end
 
   setup do
-    {:ok, _pid} = QueueManager.TempDispatcher.start_link
     {:ok, _} = TestDispatcher.start_link(self())
     :ok
   end
