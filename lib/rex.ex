@@ -8,7 +8,8 @@ defmodule Rex do
   passed to it.
   """
   def enqueue(job_module, args \\ []) do
-    Rex.QueueManager.enqueue(job_module, args)
+    job = Rex.Job.new(job_module, args)
+    Rex.QueueManager.enqueue(job)
     :ok
   end
 end

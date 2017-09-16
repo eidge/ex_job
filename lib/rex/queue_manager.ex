@@ -2,7 +2,6 @@ defmodule Rex.QueueManager do
   use GenServer
 
   alias Rex.Queue
-  alias Rex.QueueManager.{Dispatcher, GroupDispatcher}
 
   def start_link(args \\ [], opts \\ [name: __MODULE__]) do
     GenServer.start_link(__MODULE__, args, opts)
@@ -16,8 +15,8 @@ defmodule Rex.QueueManager do
     %{queues: Map.new}
   end
 
-  def enqueue(name \\ __MODULE__, queue_name, value) do
-    GenServer.call(name, {:enqueue, queue_name, value})
+  def enqueue(name \\ __MODULE__, job = %Rex.Job{}) do
+    GenServer.call(name, {:enqueue, job})
   end
 
   def dequeue(name \\ __MODULE__, queue_name) do
@@ -28,21 +27,11 @@ defmodule Rex.QueueManager do
     GenServer.call(name, :queues)
   end
 
-  def handle_call({:enqueue, job_module, args}, _from, state) do
-    # This needs to be moved elsewhere
-    group_by = apply(job_module, :group_by, args)
-    queue_name = "#{job_module}#{group_by}"
-    dispatcher =
-      if group_by do
-        GroupDispatcher
-      else
-        Dispatcher
-      end
-
-    {queue, state} = get_or_build_queue(state, queue_name)
-    {:ok, queue} = Queue.enqueue(queue, {job_module, args})
-    state = put_in(state, [:queues, queue_name], queue)
-    dispatch(dispatcher, queue_name)
+  def handle_call({:enqueue, job}, _from, state) do
+    {queue, state} = get_or_build_queue(state, job.queue_name)
+    {:ok, queue} = Queue.enqueue(queue, job)
+    state = put_in(state, [:queues, job.queue_name], queue)
+    dispatch(job)
     {:reply, :ok, state}
   end
 
@@ -50,9 +39,9 @@ defmodule Rex.QueueManager do
     queue_name = to_string(queue_name)
     queue = Map.get(state.queues, queue_name, Queue.new)
     case Queue.dequeue(queue) do
-      {:ok, queue, result} ->
+      {:ok, queue, job} ->
         new_state = put_in(state, [:queues, queue_name], queue)
-        {:reply, {:ok, result}, new_state}
+        {:reply, {:ok, job}, new_state}
       {:error, _} = error ->
         {:reply, error, state}
     end
@@ -73,8 +62,8 @@ defmodule Rex.QueueManager do
     end
   end
 
-  defp dispatch(dispatcher, queue_name) do
+  defp dispatch(job) do
     queue_manager = self()
-    dispatcher.dispatch(queue_manager, queue_name)
+    job.dispatcher.dispatch(queue_manager, job.queue_name)
   end
 end

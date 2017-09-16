@@ -44,32 +44,32 @@ defmodule Rex.QueueManager.DispatcherTest do
   end
 
   test "runs jobs in parallel for the same queue" do
-    :ok = QueueManager.enqueue(WaitToDie, [self()])
+    :ok = Rex.enqueue(WaitToDie, [self()])
     assert_receive {:ping, pid1}
 
-    :ok = QueueManager.enqueue(WaitToDie, [self()])
+    :ok = Rex.enqueue(WaitToDie, [self()])
     assert_receive {:ping, pid2}
     refute pid1 == pid2
   end
 
   test "runs jobs in parallel for different queues" do
-    :ok = QueueManager.enqueue(WaitToDie, [self()])
+    :ok = Rex.enqueue(WaitToDie, [self()])
     assert_receive {:ping, pid1}
 
-    :ok = QueueManager.enqueue(AnotherWaitToDie, [self()])
+    :ok = Rex.enqueue(AnotherWaitToDie, [self()])
     assert_receive {:ping, pid2}
     refute pid1 == pid2
   end
 
   test "runs jobs synchronously for the same queue" do
-    :ok = QueueManager.enqueue(GroupedWaitToDie, ["one_key", self()])
+    :ok = Rex.enqueue(GroupedWaitToDie, ["one_key", self()])
     assert_receive "one_key"
 
-    :ok = QueueManager.enqueue(GroupedWaitToDie, ["other_key", self()])
+    :ok = Rex.enqueue(GroupedWaitToDie, ["other_key", self()])
     assert_receive "other_key"
 
     # one_key is still sleeping, so the second "one_key" will never run.
-    :ok = QueueManager.enqueue(GroupedWaitToDie, ["one_key", self()])
+    :ok = Rex.enqueue(GroupedWaitToDie, ["one_key", self()])
     refute_receive "one_key"
   end
 end

@@ -39,20 +39,20 @@ defmodule Rex.QueueManagerTest do
     end
 
     test "enqueues a job", ctx do
-      assert :ok = QueueManager.enqueue(ctx.queue_manager, TestJob, [])
+      assert :ok = QueueManager.enqueue(ctx.queue_manager, new_job())
     end
 
     test "creates a new queue if one does not exist yet", ctx do
       assert queue_count(ctx) == 0
-      assert :ok = QueueManager.enqueue(ctx.queue_manager, TestJob, [])
+      assert :ok = QueueManager.enqueue(ctx.queue_manager, new_job())
       assert queue_count(ctx) == 1
     end
 
     test "uses existing queue if it already exists", ctx do
-      assert :ok = QueueManager.enqueue(ctx.queue_manager, TestJob, [])
+      assert :ok = QueueManager.enqueue(ctx.queue_manager, new_job())
       assert queue_count(ctx) == 1
 
-      assert :ok = QueueManager.enqueue(ctx.queue_manager, TestJob, [])
+      assert :ok = QueueManager.enqueue(ctx.queue_manager, new_job())
       assert queue_count(ctx) == 1
     end
   end
@@ -68,13 +68,13 @@ defmodule Rex.QueueManagerTest do
     end
 
     test "dequeues jobs in FIFO order", ctx do
-      assert :ok = QueueManager.enqueue(ctx.queue_manager, TestJob, [1])
-      assert :ok = QueueManager.enqueue(ctx.queue_manager, TestJob, [2])
-      assert :ok = QueueManager.enqueue(ctx.queue_manager, TestJob, [3])
+      assert :ok = QueueManager.enqueue(ctx.queue_manager, new_job(1))
+      assert :ok = QueueManager.enqueue(ctx.queue_manager, new_job(2))
+      assert :ok = QueueManager.enqueue(ctx.queue_manager, new_job(3))
 
-      assert {:ok, {_, [1]}} = QueueManager.dequeue(ctx.queue_manager, TestJob)
-      assert {:ok, {_, [2]}} = QueueManager.dequeue(ctx.queue_manager, TestJob)
-      assert {:ok, {_, [3]}} = QueueManager.dequeue(ctx.queue_manager, TestJob)
+      assert {:ok, %{arguments: [1]}} = QueueManager.dequeue(ctx.queue_manager, TestJob)
+      assert {:ok, %{arguments: [2]}} = QueueManager.dequeue(ctx.queue_manager, TestJob)
+      assert {:ok, %{arguments: [3]}} = QueueManager.dequeue(ctx.queue_manager, TestJob)
       assert {:error, :empty} = QueueManager.dequeue(ctx.queue_manager, TestJob)
     end
   end
@@ -82,5 +82,9 @@ defmodule Rex.QueueManagerTest do
   defp queue_count(ctx) do
     {:ok, queues} = QueueManager.queues(ctx.queue_manager)
     Enum.count(queues)
+  end
+
+  def new_job(value \\ nil) do
+    Rex.Job.new(TestJob, [value])
   end
 end

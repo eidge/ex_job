@@ -15,8 +15,8 @@ defmodule Rex.Runner do
   end
 
   def run(queue_manager, queue_name) do
-    {:ok, {job_module, arguments}} = QueueManager.dequeue(queue_manager, queue_name)
-    apply(job_module, :perform, arguments)
+    {:ok, job} = QueueManager.dequeue(queue_manager, queue_name)
+    apply(job.module, :perform, job.arguments)
   end
 
   def enqueue(pid, queue_manager, queue_name) do

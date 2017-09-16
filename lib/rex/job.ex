@@ -15,6 +15,29 @@ defmodule Rex.Job do
   @callback perform(any, any, any, any) :: String.t
   @callback perform(any, any, any, any, any) :: String.t
 
+  alias Rex.QueueManager.{Dispatcher, GroupDispatcher}
+
+  defstruct [:module, :arguments, :dispatcher, :queue_name]
+
+  def new(job_module, args) do
+    group_by = apply(job_module, :group_by, args)
+    queue_name = queue_name(job_module, group_by)
+    dispatcher = dispatcher(group_by)
+    struct!(
+      __MODULE__,
+      module: job_module,
+      arguments: args,
+      dispatcher: dispatcher,
+      queue_name: queue_name
+    )
+  end
+
+  defp queue_name(job_module, nil), do: to_string(job_module)
+  defp queue_name(job_module, group_by), do: "#{job_module}-#{group_by}"
+
+  defp dispatcher(nil), do: Dispatcher
+  defp dispatcher(_), do: GroupDispatcher
+
   defmacro __using__(_opts \\ []) do
     quote do
       @behaviour Rex.Job
