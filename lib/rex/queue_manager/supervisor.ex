@@ -7,6 +7,7 @@ defmodule Rex.QueueManager.Supervisor do
 
   defp children do
     [
+      Rex.QueueManager.GroupDispatcher,
       Rex.QueueManager.Dispatcher,
       Rex.QueueManager,
     ]

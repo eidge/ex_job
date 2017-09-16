@@ -1,36 +1,75 @@
 defmodule Rex.QueueManager.DispatcherTest do
-  use ExUnit.Case, async: true
+  use ExUnit.Case
 
   alias Rex.QueueManager
 
   setup do
-    {:ok, _} = QueueManager.Supervisor.start_link(dispatcher: QueueManager.Dispatcher)
+    {:ok, _} = QueueManager.Supervisor.start_link
+
+    on_exit fn ->
+      Process.exit(Process.whereis(QueueManager.Supervisor), :kill)
+      :ok
+    end
+
     :ok
   end
 
-  defmodule SleepJob do
+  defmodule WaitToDie do
+    use Rex.Job
+
     def perform(pid) do
-      :timer.sleep(50)
-      send pid, :done
+      send pid, {:ping, self()}
+      :timer.sleep(:infinity)
     end
   end
 
-  test "runs jobs in parallel" do
-    # :timer starts automatically if it wasn't started yet, but it is slow to
-    # start so if we don't start it beforehand, we can't guarantee tests will
-    # run in the expected time.
-    :ok = :timer.start
+  defmodule AnotherWaitToDie do
+    use Rex.Job
 
-    :ok = QueueManager.enqueue(SleepJob, [self()])
-    :ok = QueueManager.enqueue(SleepJob, [self()])
-    :ok = QueueManager.enqueue(SleepJob, [self()])
-    :ok = QueueManager.enqueue(SleepJob, [self()])
-    :ok = QueueManager.enqueue(SleepJob, [self()])
+    def perform(pid) do
+      send pid, {:ping, self()}
+      :timer.sleep(:infinity)
+    end
+  end
 
-    assert_receive :done, 100
-    assert_receive :done, 10
-    assert_receive :done, 10
-    assert_receive :done, 10
-    assert_receive :done, 10
+  defmodule GroupedWaitToDie do
+    use Rex.Job
+
+    def group_by(key, _), do: key
+
+    def perform(key, pid) do
+      send pid, key
+      :timer.sleep(:infinity)
+    end
+  end
+
+  test "runs jobs in parallel for the same queue" do
+    :ok = QueueManager.enqueue(WaitToDie, [self()])
+    assert_receive {:ping, pid1}
+
+    :ok = QueueManager.enqueue(WaitToDie, [self()])
+    assert_receive {:ping, pid2}
+    refute pid1 == pid2
+  end
+
+  test "runs jobs in parallel for different queues" do
+    :ok = QueueManager.enqueue(WaitToDie, [self()])
+    assert_receive {:ping, pid1}
+
+    :ok = QueueManager.enqueue(AnotherWaitToDie, [self()])
+    assert_receive {:ping, pid2}
+    refute pid1 == pid2
+  end
+
+  test "runs jobs synchronously for the same queue" do
+    :ok = QueueManager.enqueue(GroupedWaitToDie, ["one_key", self()])
+    assert_receive "one_key"
+
+    :ok = QueueManager.enqueue(GroupedWaitToDie, ["other_key", self()])
+    assert_receive "other_key"
+
+    # one_key is still sleeping, so the second "one_key" will never run.
+    :ok = QueueManager.enqueue(GroupedWaitToDie, ["one_key", self()])
+    refute_receive "one_key"
   end
 end

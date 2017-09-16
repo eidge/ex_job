@@ -1,21 +1,18 @@
 defmodule Rex.QueueManager.Dispatcher do
   use GenServer
 
-  alias Rex.QueueManager
+  alias Rex.Runner
 
   def start_link(_opts), do: GenServer.start_link(__MODULE__, nil, name: __MODULE__)
 
   def init(nil), do: {:ok, nil}
 
-  def dispatch(queue_manager, job_module) do
-    :ok = GenServer.cast(__MODULE__, {:dispatch, queue_manager, job_module})
+  def dispatch(queue_manager, queue_name) do
+    :ok = GenServer.cast(__MODULE__, {:dispatch, queue_manager, queue_name})
   end
 
-  def handle_cast({:dispatch, queue_manager, job_module}, state) do
-    {:ok, arguments} = QueueManager.dequeue(queue_manager, job_module)
-    spawn fn ->
-      apply(job_module, :perform, arguments)
-    end
+  def handle_cast({:dispatch, queue_manager, queue_name}, state) do
+    Runner.run_async(queue_manager, queue_name)
     {:noreply, state}
   end
 end

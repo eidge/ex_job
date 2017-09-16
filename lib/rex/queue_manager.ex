@@ -2,7 +2,7 @@ defmodule Rex.QueueManager do
   use GenServer
 
   alias Rex.Queue
-  alias Rex.QueueManager.Dispatcher
+  alias Rex.QueueManager.{Dispatcher, GroupDispatcher}
 
   def start_link(args \\ [], opts \\ [name: __MODULE__]) do
     GenServer.start_link(__MODULE__, args, opts)
@@ -12,9 +12,8 @@ defmodule Rex.QueueManager do
     {:ok, initial_state(args)}
   end
 
-  defp initial_state(args) do
-    dispatcher = Keyword.get(args, :dispatcher, Dispatcher)
-    %{queues: Map.new, dispatcher: dispatcher}
+  defp initial_state(_args) do
+    %{queues: Map.new}
   end
 
   def enqueue(name \\ __MODULE__, queue_name, value) do
@@ -29,15 +28,26 @@ defmodule Rex.QueueManager do
     GenServer.call(name, :queues)
   end
 
-  def handle_call({:enqueue, queue_name, value}, _from, state) do
+  def handle_call({:enqueue, job_module, args}, _from, state) do
+    # This needs to be moved elsewhere
+    group_by = apply(job_module, :group_by, args)
+    queue_name = "#{job_module}#{group_by}"
+    dispatcher =
+      if group_by do
+        GroupDispatcher
+      else
+        Dispatcher
+      end
+
     {queue, state} = get_or_build_queue(state, queue_name)
-    {:ok, queue} = Queue.enqueue(queue, value)
+    {:ok, queue} = Queue.enqueue(queue, {job_module, args})
     state = put_in(state, [:queues, queue_name], queue)
-    dispatch(state, queue_name)
+    dispatch(dispatcher, queue_name)
     {:reply, :ok, state}
   end
 
   def handle_call({:dequeue, queue_name}, _from, state) do
+    queue_name = to_string(queue_name)
     queue = Map.get(state.queues, queue_name, Queue.new)
     case Queue.dequeue(queue) do
       {:ok, queue, result} ->
@@ -63,8 +73,8 @@ defmodule Rex.QueueManager do
     end
   end
 
-  defp dispatch(state, queue_name) do
+  defp dispatch(dispatcher, queue_name) do
     queue_manager = self()
-    state.dispatcher.dispatch(queue_manager, queue_name)
+    dispatcher.dispatch(queue_manager, queue_name)
   end
 end

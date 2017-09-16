@@ -1,5 +1,5 @@
 defmodule Rex.QueueManagerTest do
-  use ExUnit.Case, async: true
+  use ExUnit.Case
 
   alias Rex.QueueManager
 
@@ -9,17 +9,19 @@ defmodule Rex.QueueManagerTest do
     def start_link(test_pid), do: GenServer.start_link(__MODULE__, test_pid, name: __MODULE__)
     def init(test_pid), do: {:ok, test_pid}
 
-    def dispatch(queue_manager, queue) do
-      :ok = GenServer.cast(__MODULE__, {:dispatch, queue_manager, queue})
+    def dispatch(queue_manager, queue_name) do
+      :ok = GenServer.cast(__MODULE__, {:dispatch, queue_manager, queue_name})
     end
 
-    def handle_cast({:dispatch, _queue_manager, queue}, test_pid) do
-      send test_pid, {:dispatched, queue}
+    def handle_cast({:dispatch, _queue_manager, queue_name}, test_pid) do
+      send test_pid, {:dispatched, queue_name}
       {:noreply, test_pid}
     end
   end
 
   defmodule TestJob do
+    use Rex.Job
+
     def perform() do
       :ok
     end
@@ -53,12 +55,6 @@ defmodule Rex.QueueManagerTest do
       assert :ok = QueueManager.enqueue(ctx.queue_manager, TestJob, [])
       assert queue_count(ctx) == 1
     end
-
-    test "notifies dispatcher" do
-      {:ok, queue_manager} = QueueManager.start_link([dispatcher: TestDispatcher], [])
-      assert :ok = QueueManager.enqueue(queue_manager, :queue, self())
-      assert_receive {:dispatched, :queue}
-    end
   end
 
   describe "dequeue/2" do
@@ -76,9 +72,9 @@ defmodule Rex.QueueManagerTest do
       assert :ok = QueueManager.enqueue(ctx.queue_manager, TestJob, [2])
       assert :ok = QueueManager.enqueue(ctx.queue_manager, TestJob, [3])
 
-      assert {:ok, [1]} = QueueManager.dequeue(ctx.queue_manager, TestJob)
-      assert {:ok, [2]} = QueueManager.dequeue(ctx.queue_manager, TestJob)
-      assert {:ok, [3]} = QueueManager.dequeue(ctx.queue_manager, TestJob)
+      assert {:ok, {_, [1]}} = QueueManager.dequeue(ctx.queue_manager, TestJob)
+      assert {:ok, {_, [2]}} = QueueManager.dequeue(ctx.queue_manager, TestJob)
+      assert {:ok, {_, [3]}} = QueueManager.dequeue(ctx.queue_manager, TestJob)
       assert {:error, :empty} = QueueManager.dequeue(ctx.queue_manager, TestJob)
     end
   end

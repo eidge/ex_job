@@ -1,8 +1,10 @@
 defmodule RexTest do
-  use ExUnit.Case, async: true
+  use ExUnit.Case
   doctest Rex
 
   defmodule TestJob do
+    use Rex.Job
+
     def perform(test_pid) do
       send(test_pid, :test_job_ack)
     end
