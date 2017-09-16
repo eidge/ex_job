@@ -31,7 +31,6 @@ defmodule Rex.QueueManager do
     {queue, state} = get_or_build_queue(state, job.queue_name)
     {:ok, queue} = Queue.enqueue(queue, job)
     state = put_in(state, [:queues, job.queue_name], queue)
-    dispatch(job)
     {:reply, :ok, state}
   end
 
@@ -60,10 +59,5 @@ defmodule Rex.QueueManager do
       new_state = put_in(state, [:queues, queue_name], queue)
       {queue, new_state}
     end
-  end
-
-  defp dispatch(job) do
-    queue_manager = self()
-    job.dispatcher.dispatch(queue_manager, job.queue_name)
   end
 end

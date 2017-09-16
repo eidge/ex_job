@@ -9,7 +9,8 @@ defmodule Rex do
   """
   def enqueue(job_module, args \\ []) do
     job = Rex.Job.new(job_module, args)
-    Rex.QueueManager.enqueue(job)
+    :ok = Rex.QueueManager.enqueue(job)
+    :ok = job.dispatcher.dispatch(Rex.QueueManager, job.queue_name)
     :ok
   end
 end
