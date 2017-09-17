@@ -1,4 +1,4 @@
-defmodule Rex.QueueManager.Dispatcher do
+defmodule Rex.Dispatcher do
   use GenServer
 
   alias Rex.Runner

@@ -15,7 +15,7 @@ defmodule Rex.Job do
   @callback perform(any, any, any, any) :: String.t
   @callback perform(any, any, any, any, any) :: String.t
 
-  alias Rex.QueueManager.{Dispatcher, GroupDispatcher}
+  alias Rex.{Dispatcher, GroupDispatcher}
 
   defstruct [:module, :arguments, :dispatcher, :queue_name]
 
