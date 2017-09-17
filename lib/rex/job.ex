@@ -17,7 +17,7 @@ defmodule Rex.Job do
 
   alias Rex.{Dispatcher, GroupDispatcher}
 
-  defstruct [:module, :arguments, :dispatcher, :queue_name]
+  defstruct [:ref, :module, :arguments, :dispatcher, :queue_name]
 
   def new(job_module, args) do
     group_by = apply(job_module, :group_by, args)
@@ -25,6 +25,7 @@ defmodule Rex.Job do
     dispatcher = dispatcher(group_by)
     struct!(
       __MODULE__,
+      ref: make_ref(),
       module: job_module,
       arguments: args,
       dispatcher: dispatcher,

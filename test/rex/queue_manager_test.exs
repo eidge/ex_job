@@ -3,22 +3,6 @@ defmodule Rex.QueueManagerTest do
 
   alias Rex.QueueManager
 
-  defmodule TestDispatcher do
-    use GenServer
-
-    def start_link(test_pid), do: GenServer.start_link(__MODULE__, test_pid, name: __MODULE__)
-    def init(test_pid), do: {:ok, test_pid}
-
-    def dispatch(queue_manager, queue_name) do
-      :ok = GenServer.cast(__MODULE__, {:dispatch, queue_manager, queue_name})
-    end
-
-    def handle_cast({:dispatch, _queue_manager, queue_name}, test_pid) do
-      send test_pid, {:dispatched, queue_name}
-      {:noreply, test_pid}
-    end
-  end
-
   defmodule TestJob do
     use Rex.Job
 
@@ -28,45 +12,37 @@ defmodule Rex.QueueManagerTest do
   end
 
   setup do
-    {:ok, _} = TestDispatcher.start_link(self())
-    :ok
+    {:ok, queue_manager} = QueueManager.start_link([], [])
+    {:ok, queue_manager: queue_manager}
   end
 
   describe "enqueue/3" do
-    setup do
-      {:ok, queue_manager} = QueueManager.start_link([], [])
-      {:ok, queue_manager: queue_manager}
-    end
-
     test "enqueues a job", ctx do
       assert :ok = QueueManager.enqueue(ctx.queue_manager, new_job())
     end
 
     test "creates a new queue if one does not exist yet", ctx do
-      assert queue_count(ctx) == 0
+      assert QueueManager.info(ctx.queue_manager).queues == 0
       assert :ok = QueueManager.enqueue(ctx.queue_manager, new_job())
-      assert queue_count(ctx) == 1
+      assert QueueManager.info(ctx.queue_manager).queues == 1
     end
 
     test "uses existing queue if it already exists", ctx do
       assert :ok = QueueManager.enqueue(ctx.queue_manager, new_job())
-      assert queue_count(ctx) == 1
+      assert QueueManager.info(ctx.queue_manager).queues == 1
 
       assert :ok = QueueManager.enqueue(ctx.queue_manager, new_job())
-      assert queue_count(ctx) == 1
+      assert QueueManager.info(ctx.queue_manager).queues == 1
+    end
+
+    test "marks job as pending", ctx do
+      assert %{pending: 0, working: 0} = QueueManager.info(ctx.queue_manager)
+      assert :ok = QueueManager.enqueue(ctx.queue_manager, new_job(1))
+      assert %{pending: 1, working: 0} = QueueManager.info(ctx.queue_manager)
     end
   end
 
   describe "dequeue/2" do
-    defmodule NoOpDispatcher do
-      def dispatch(_queue_manager, _queue), do: nil
-    end
-
-    setup do
-      {:ok, queue_manager} = QueueManager.start_link([dispatcher: NoOpDispatcher], [])
-      {:ok, queue_manager: queue_manager}
-    end
-
     test "dequeues jobs in FIFO order", ctx do
       assert :ok = QueueManager.enqueue(ctx.queue_manager, new_job(1))
       assert :ok = QueueManager.enqueue(ctx.queue_manager, new_job(2))
@@ -77,11 +53,48 @@ defmodule Rex.QueueManagerTest do
       assert {:ok, %{arguments: [3]}} = QueueManager.dequeue(ctx.queue_manager, TestJob)
       assert {:error, :empty} = QueueManager.dequeue(ctx.queue_manager, TestJob)
     end
+
+    test "marks job as working", ctx do
+      assert :ok = QueueManager.enqueue(ctx.queue_manager, new_job(1))
+      assert %{pending: 1, working: 0} = QueueManager.info(ctx.queue_manager)
+
+      assert {:ok, %{arguments: [1]}} = QueueManager.dequeue(ctx.queue_manager, TestJob)
+      assert %{pending: 0, working: 1} = QueueManager.info(ctx.queue_manager)
+    end
   end
 
-  defp queue_count(ctx) do
-    {:ok, queues} = QueueManager.queues(ctx.queue_manager)
-    Enum.count(queues)
+  describe "notify_success/2" do
+    test "marks job as completed successfully", ctx do
+      assert :ok = QueueManager.enqueue(ctx.queue_manager, new_job(1))
+      assert %{pending: 1, working: 0, processed: 0} = QueueManager.info(ctx.queue_manager)
+
+      assert {:ok, job} = QueueManager.dequeue(ctx.queue_manager, TestJob)
+      assert %{pending: 0, working: 1, processed: 0} = QueueManager.info(ctx.queue_manager)
+
+      :ok = QueueManager.notify_success(ctx.queue_manager, job)
+      assert %{pending: 0, working: 0, processed: 1} = QueueManager.info(ctx.queue_manager)
+    end
+
+    test "fails if job is not in the working queue", ctx do
+      job = new_job(1)
+      assert :ok = QueueManager.enqueue(ctx.queue_manager, job)
+      assert %{pending: 1, working: 0} = QueueManager.info(ctx.queue_manager)
+
+      assert_raise QueueManager.NotWorkingError, fn ->
+        QueueManager.notify_success(ctx.queue_manager, job)
+      end
+    end
+  end
+
+  describe "info/0" do
+    test "starts with all metrics zeroed out", ctx do
+      info = QueueManager.info(ctx.queue_manager)
+      assert info.pending == 0
+      assert info.processed == 0
+      assert info.working == 0
+      assert info.failed == 0
+      assert info.queues == 0
+    end
   end
 
   def new_job(value \\ nil) do

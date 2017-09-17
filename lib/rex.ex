@@ -3,14 +3,29 @@ defmodule Rex do
   Documentation for Rex.
   """
 
+  alias Rex.QueueManager
+
   @doc """
   Enqueues a job that will be processed by **job_module** with **args**
   passed to it.
   """
   def enqueue(job_module, args \\ []) do
     job = Rex.Job.new(job_module, args)
-    :ok = Rex.QueueManager.enqueue(job)
-    :ok = job.dispatcher.dispatch(Rex.QueueManager, job.queue_name)
+    :ok = QueueManager.enqueue(job)
+    :ok = job.dispatcher.dispatch(QueueManager, job.queue_name)
     :ok
+  end
+
+  @doc """
+  Returns information on jobs, workers and queues.
+  """
+  def info do
+    %{
+      pending: 0,
+      processed: 0,
+      working: 0,
+      failed: 0,
+      queues: 0,
+    }
   end
 end

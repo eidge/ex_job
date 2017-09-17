@@ -40,23 +40,26 @@ defmodule RexTest do
     end
   end
 
-  setup do
-    {:ok, _} = QueueManager.Supervisor.start_link
+  describe "enqueue/2" do
+    setup do
+      {:ok, _} = QueueManager.Supervisor.start_link
 
-    on_exit fn ->
-      Process.exit(Process.whereis(QueueManager.Supervisor), :kill)
+      on_exit fn ->
+        # This is necessary because "WaitToDie" never finish, so the processes
+        # linger on between tests and make the start_link/0 call fail because
+        # the process was already started.
+        Process.exit(Process.whereis(QueueManager.Supervisor), :kill)
+        :ok
+      end
+
       :ok
     end
 
-    :ok
-  end
+    test "processes a job" do
+      :ok = Rex.enqueue(TestJob, [self()])
+      assert_receive :test_job_ack
+    end
 
-  test "processes a job" do
-    :ok = Rex.enqueue(TestJob, [self()])
-    assert_receive :test_job_ack
-  end
-
-  describe "dispatching mechanism" do
     test "runs jobs in parallel for the same queue" do
       :ok = Rex.enqueue(WaitToDie, [self()])
       assert_receive {:ping, pid1}
@@ -86,5 +89,19 @@ defmodule RexTest do
       :ok = Rex.enqueue(GroupedWaitToDie, ["one_key", self()])
       refute_receive "one_key"
     end
+  end
+
+  describe "info/0" do
+    test "returns job metrics" do
+      info = Rex.info()
+      assert info.pending == 0
+      assert info.processed == 0
+      assert info.working == 0
+      assert info.failed == 0
+      assert info.queues == 0
+    end
+
+    # test "follows job progress to success"
+    # test "follows job progress to failed"
   end
 end
