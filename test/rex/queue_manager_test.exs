@@ -65,24 +65,61 @@ defmodule Rex.QueueManagerTest do
 
   describe "notify_success/2" do
     test "marks job as completed successfully", ctx do
+      import QueueManager, only: [info: 1]
+
       assert :ok = QueueManager.enqueue(ctx.queue_manager, new_job(1))
-      assert %{pending: 1, working: 0, processed: 0} = QueueManager.info(ctx.queue_manager)
+      assert %{pending: 1, working: 0, processed: 0, failed: 0} = info(ctx.queue_manager)
 
       assert {:ok, job} = QueueManager.dequeue(ctx.queue_manager, TestJob)
-      assert %{pending: 0, working: 1, processed: 0} = QueueManager.info(ctx.queue_manager)
+      assert %{pending: 0, working: 1, processed: 0, failed: 0} = info(ctx.queue_manager)
 
       :ok = QueueManager.notify_success(ctx.queue_manager, job)
-      assert %{pending: 0, working: 0, processed: 1} = QueueManager.info(ctx.queue_manager)
+      assert %{pending: 0, working: 0, processed: 1, failed: 0} = info(ctx.queue_manager)
     end
 
+    @tag :capture_log
     test "fails if job is not in the working queue", ctx do
       job = new_job(1)
       assert :ok = QueueManager.enqueue(ctx.queue_manager, job)
       assert %{pending: 1, working: 0} = QueueManager.info(ctx.queue_manager)
 
-      assert_raise QueueManager.NotWorkingError, fn ->
+      Process.flag :trap_exit, true
+      catch_exit do
         QueueManager.notify_success(ctx.queue_manager, job)
       end
+
+      pid = ctx.queue_manager
+      assert_received({:EXIT, ^pid, {%QueueManager.NotWorkingError{}, _}})
+    end
+  end
+
+  describe "notify_failure/2" do
+    test "marks job as failed", ctx do
+      import QueueManager, only: [info: 1]
+
+      assert :ok = QueueManager.enqueue(ctx.queue_manager, new_job(1))
+      assert %{pending: 1, working: 0, processed: 0, failed: 0} = info(ctx.queue_manager)
+
+      assert {:ok, job} = QueueManager.dequeue(ctx.queue_manager, TestJob)
+      assert %{pending: 0, working: 1, processed: 0, failed: 0} = info(ctx.queue_manager)
+
+      :ok = QueueManager.notify_failure(ctx.queue_manager, job)
+      assert %{pending: 0, working: 0, processed: 0, failed: 1} = info(ctx.queue_manager)
+    end
+
+    @tag :capture_log
+    test "fails if job is not in the working queue", ctx do
+      job = new_job(1)
+      assert :ok = QueueManager.enqueue(ctx.queue_manager, job)
+      assert %{pending: 1, working: 0} = QueueManager.info(ctx.queue_manager)
+
+      Process.flag :trap_exit, true
+      catch_exit do
+        QueueManager.notify_success(ctx.queue_manager, job)
+      end
+
+      pid = ctx.queue_manager
+      assert_received({:EXIT, ^pid, {%QueueManager.NotWorkingError{}, _}})
     end
   end
 

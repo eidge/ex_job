@@ -21,4 +21,13 @@ defmodule Rex.Queue do
   def size(state = %__MODULE__{}) do
     :queue.len(state.queue)
   end
+
+  def to_list(state = %__MODULE__{}) do
+    :queue.to_list(state.queue)
+  end
+
+  def from_list(list) when is_list(list) do
+    queue = :queue.from_list(list)
+    %__MODULE__{queue: queue}
+  end
 end

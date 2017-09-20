@@ -1,4 +1,8 @@
 defmodule Rex.QueueManager do
+  defmodule NotWorkingError do
+    defexception message: "Job was not the found on the :working queue"
+  end
+
   use GenServer
 
   alias Rex.Queue
@@ -13,7 +17,7 @@ defmodule Rex.QueueManager do
 
   defp initial_state(_args) do
     %{
-      queues: %{pending: Map.new, working: Map.new}
+      queues: %{pending: Map.new, working: Map.new}, processed_count: 0, failed_count: 0
     }
   end
 
@@ -29,19 +33,12 @@ defmodule Rex.QueueManager do
     GenServer.call(name, {:notify_success, job})
   end
 
-  def info(name \\ __MODULE__) do
-    {:ok, queues} = queues(name)
-    %{
-      pending: job_count(queues.pending),
-      processed: 0,
-      working: job_count(queues.working),
-      failed: 0,
-      queues: queue_count(queues.pending),
-    }
+  def notify_failure(name \\ __MODULE__, job = %Rex.Job{}) do
+    GenServer.call(name, {:notify_failure, job})
   end
 
-  defp queues(name) do
-    GenServer.call(name, :queues)
+  def info(name \\ __MODULE__) do
+    GenServer.call(name, :info)
   end
 
   defp job_count(queues) do
@@ -72,13 +69,32 @@ defmodule Rex.QueueManager do
     end
   end
 
-  def handle_call({:notify_success, _job}, _from, state) do
-    state.queues.pending
+  def handle_call({:notify_success, job}, _from, state) do
+    state = state
+    |> remove_job_from_working_queue(job)
+    |> increment(:processed_count)
     {:reply, :ok, state}
   end
 
-  def handle_call(:queues, _from, state) do
-    {:reply, {:ok, state.queues}, state}
+  def handle_call({:notify_failure, job}, _from, state) do
+    state = state
+    |> remove_job_from_working_queue(job)
+    |> increment(:failed_count)
+    {:reply, :ok, state}
+  end
+
+  def handle_call(:info, _from, state) do
+    queues = state.queues
+    processed_count = state.processed_count
+    failed_count = state.failed_count
+    info = %{
+      pending: job_count(queues.pending),
+      processed: processed_count,
+      working: job_count(queues.working),
+      failed: failed_count,
+      queues: queue_count(queues.pending),
+    }
+    {:reply, info, state}
   end
 
   defp enqueue_in(state, job_status, job) do
@@ -99,5 +115,24 @@ defmodule Rex.QueueManager do
     |> Map.fetch!(job.queue_name)
     |> Queue.enqueue(job)
     Map.put(queues, job.queue_name, queue)
+  end
+
+  defp remove_job_from_working_queue(state, job) do
+    list = state.queues.working
+    |> Map.get(job.queue_name, Queue.new)
+    |> Queue.to_list
+
+    job_index = Enum.find_index(list, fn j -> j.ref == job.ref end)
+    unless job_index, do: raise(NotWorkingError)
+
+    queue = list
+    |> List.delete_at(job_index)
+    |> Queue.from_list
+
+    put_in(state, [:queues, :working, job.queue_name], queue)
+  end
+
+  defp increment(state, count_type) do
+    Map.update!(state, count_type, &(&1 + 1))
   end
 end
