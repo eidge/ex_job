@@ -14,7 +14,8 @@ defmodule ExJob.Mixfile do
       package: package(),
       start_permanent: Mix.env == :prod,
       aliases: aliases(),
-      deps: deps()
+      deps: deps(),
+      docs: docs()
     ]
   end
 
@@ -44,6 +45,13 @@ defmodule ExJob.Mixfile do
   defp aliases do
     [
       test: "test --no-start"
+    ]
+  end
+
+  defp docs do
+    [
+      main:       "ExJob",
+      extras:     ["README.md"]
     ]
   end
 end

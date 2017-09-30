@@ -1,7 +1,7 @@
 # ExJob
 
-ExJob is a zero-dependency, ultra-fast (to be proved), background job processing
-library.
+ExJob is a zero-dependency, ultra-fast ([1](https://github.com/eidge/ex_job_benchmark)),
+background job processing library.
 
 
 All you need is ExJob, no Redis, no internal or external dependencies. Running
@@ -11,7 +11,9 @@ first job.
 ## Usage
 
 ExJob's interface is very similar to other job processing libraries such as
-Toniq, Exq. You'll need to defined a job handler:
+Toniq or Exq.
+
+You'll need to defined a job handler:
 
 ```elixir
 defmodule App.WelcomeEmail do
@@ -34,6 +36,42 @@ ExJob.enqueue(App.WelcomeEmail, [user])
 
 Note that because ExJob is implemented in pure elixir, you can pass any elixir
 term to the enqueue function (such as an Ecto struct) as it will not be serialized.
+
+### Grouping Jobs
+
+By default, ExJob will run each of your jobs concurrently in a different process. But
+sometimes you'll want your jobs to be processed synchronously.
+
+ExJob allows you to define a `group_by` function inside your job module. Jobs
+for which `group_by` returns the same value will run synchronously in the order
+they were enqueued.
+
+Let's say you wanted to send multiple text messages to your users, but you want
+to preserve order:
+
+```elixir
+defmodule App.Jobs.SendTextMessage do
+  use ExJob.Job
+
+  def group_by(%User{id: id}, _message_type), do: id
+
+  def perform(user, message_type) do
+    text = App.Messages.for(message_type)
+    number = user.phone_number
+    Twilio.send(to: number, text: text)
+  end
+end
+```
+
+You can now enqueue as many messages as you want, and they will be processed in
+the same order as you enqueued them:
+
+```elixir
+user = UserRepo.first
+ExJob.enqueue(App.Jobs.SendTextMessage, [user, :welcome])
+ExJob.enqueue(App.Jobs.SendTextMessage, [user, :first_use_voucher])
+ExJob.enqueue(App.Jobs.SendTextMessage, [user, :more_spam])
+```
 
 ## Installation
 

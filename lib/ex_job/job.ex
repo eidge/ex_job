@@ -1,8 +1,11 @@
 defmodule ExJob.Job do
+  @moduledoc false
+
   alias ExJob.{Dispatcher, GroupDispatcher}
 
   defstruct [:ref, :module, :arguments, :dispatcher, :queue_name, :arity]
 
+  @doc false
   def new(job_module, args) do
     validate_arity!(job_module.arity(), args)
     group_by = apply(job_module, :group_by, args)
@@ -32,6 +35,7 @@ defmodule ExJob.Job do
     end
   end
 
+  @doc false
   defmacro def(call, expr \\ nil) do
     # Keep track of :perform and :group_by function definitions so
     # that we can give the user helpful errors should the spec not be correctly
