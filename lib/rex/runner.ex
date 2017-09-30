@@ -27,5 +27,4 @@ defmodule Rex.Runner do
       return_value -> raise ArgumentError, "Expected `#{job.module}.perform/n` to return :ok, :error or {:error, reason}, got #{inspect(return_value)}"
     end
   end
-
 end

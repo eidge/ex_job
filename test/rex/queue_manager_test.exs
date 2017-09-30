@@ -6,7 +6,7 @@ defmodule Rex.QueueManagerTest do
   defmodule TestJob do
     use Rex.Job
 
-    def perform() do
+    def perform(_) do
       :ok
     end
   end
