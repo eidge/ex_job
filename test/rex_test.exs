@@ -130,6 +130,12 @@ defmodule RexTest do
       end
       assert capture_log(enqueue_invalid_job_fn) =~ "Expected `Elixir.RexTest.InvalidJob.perform/n` to return :ok, :error or {:error, reason}, got :invalid_return_value"
     end
+
+    test "raises helpful exception if second argument is not a list" do
+      assert_raise ArgumentError,
+        "expected list, got Rex.enqueue(RexTest.TestJob, \"not a list\")",
+        fn -> Rex.enqueue(TestJob, "not a list") end
+    end
   end
 
   describe "info/0" do
