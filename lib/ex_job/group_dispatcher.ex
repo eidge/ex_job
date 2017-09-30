@@ -1,4 +1,4 @@
-defmodule Rex.GroupDispatcher do
+defmodule ExJob.GroupDispatcher do
   use GenServer
 
   def start_link(_opts), do: GenServer.start_link(__MODULE__, nil, name: __MODULE__)
@@ -11,13 +11,13 @@ defmodule Rex.GroupDispatcher do
 
   def handle_cast({:dispatch, queue_manager, queue_name}, state) do
     {:ok, pid} = worker_for(queue_name)
-    Rex.Runner.run(pid, queue_manager, queue_name)
+    ExJob.Runner.run(pid, queue_manager, queue_name)
     {:noreply, state}
   end
 
   defp worker_for(queue_name) do
     queue_name = String.to_atom(queue_name) # Get rid of this, use a proper registry
-    case Rex.Runner.start_link(name: queue_name) do
+    case ExJob.Runner.start_link(name: queue_name) do
       {:ok, _pid} = ok -> ok
       {:error, {:already_started, pid}} -> {:ok, pid}
     end

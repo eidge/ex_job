@@ -1,4 +1,4 @@
-defmodule Rex.QueueManager.Supervisor do
+defmodule ExJob.QueueManager.Supervisor do
   use Supervisor
 
   def start_link(opts \\ []) do
@@ -12,9 +12,9 @@ defmodule Rex.QueueManager.Supervisor do
 
   defp children do
     [
-      Rex.GroupDispatcher,
-      Rex.Dispatcher,
-      Rex.QueueManager,
+      ExJob.GroupDispatcher,
+      ExJob.Dispatcher,
+      ExJob.QueueManager,
     ]
   end
 end

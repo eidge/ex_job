@@ -1,4 +1,4 @@
-defmodule Rex.Queue do
+defmodule ExJob.Queue do
   @enforce_keys [:queue]
   defstruct [:queue]
 

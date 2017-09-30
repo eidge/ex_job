@@ -1,10 +1,10 @@
-defmodule Rex.QueueManagerTest do
+defmodule ExJob.QueueManagerTest do
   use ExUnit.Case
 
-  alias Rex.QueueManager
+  alias ExJob.QueueManager
 
   defmodule TestJob do
-    use Rex.Job
+    use ExJob.Job
 
     def perform(_) do
       :ok
@@ -135,6 +135,6 @@ defmodule Rex.QueueManagerTest do
   end
 
   def new_job(value \\ nil) do
-    Rex.Job.new(TestJob, [value])
+    ExJob.Job.new(TestJob, [value])
   end
 end

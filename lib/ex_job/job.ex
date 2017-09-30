@@ -1,5 +1,5 @@
-defmodule Rex.Job do
-  alias Rex.{Dispatcher, GroupDispatcher}
+defmodule ExJob.Job do
+  alias ExJob.{Dispatcher, GroupDispatcher}
 
   defstruct [:ref, :module, :arguments, :dispatcher, :queue_name, :arity]
 

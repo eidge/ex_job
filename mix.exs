@@ -1,11 +1,17 @@
-defmodule Rex.Mixfile do
+defmodule ExJob.Mixfile do
   use Mix.Project
+
+  @app :ex_job
+  @version "0.2.0"
+  @github "https://github.com/eidge/ex_job"
 
   def project do
     [
-      app: :rex,
-      version: "0.1.0",
+      app: @app,
+      version: @version,
       elixir: "~> 1.5",
+      description: "Zero dependency, ultra-fast, background job processing library.",
+      package: package(),
       start_permanent: Mix.env == :prod,
       aliases: aliases(),
       deps: deps()
@@ -15,14 +21,23 @@ defmodule Rex.Mixfile do
   def application do
     [
       extra_applications: [:logger],
-      mod: {Rex.Application, []}
+      mod: {ExJob.Application, []}
+    ]
+  end
+
+  defp package do
+    [
+      name: @app,
+      maintainers: ["Hugo Ribeira"],
+      licenses: ["MIT"],
+      files: ~w(mix.exs lib README.md),
+      links: %{"Github" => @github}
     ]
   end
 
   defp deps do
     [
-      # {:dep_from_hexpm, "~> 0.3.0"},
-      # {:dep_from_git, git: "https://github.com/elixir-lang/my_dep.git", tag: "0.1.0"},
+      {:ex_doc, ">= 0.0.0", only: :dev}
     ]
   end
 

@@ -1,7 +1,7 @@
-defmodule Rex.QueueTest do
+defmodule ExJob.QueueTest do
   use ExUnit.Case
 
-  alias Rex.Queue
+  alias ExJob.Queue
 
   describe "enqueue/2" do
     test "enqueues an item" do

@@ -1,7 +1,7 @@
-defmodule Rex.Runner do
+defmodule ExJob.Runner do
   use GenServer
 
-  alias Rex.QueueManager
+  alias ExJob.QueueManager
 
   def start_link(opts \\ []) do
     GenServer.start_link(__MODULE__, nil, opts)

@@ -1,7 +1,7 @@
-defmodule Rex.Dispatcher do
+defmodule ExJob.Dispatcher do
   use GenServer
 
-  alias Rex.Runner
+  alias ExJob.Runner
 
   def start_link(_opts), do: GenServer.start_link(__MODULE__, nil, name: __MODULE__)
 

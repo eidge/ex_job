@@ -1,9 +1,9 @@
-defmodule Rex do
+defmodule ExJob do
   @moduledoc """
-  Documentation for Rex.
+  Documentation for ExJob.
   """
 
-  alias Rex.QueueManager
+  alias ExJob.QueueManager
 
   @doc """
   Enqueues a job that will be processed by **job_module** with **args**
@@ -11,13 +11,13 @@ defmodule Rex do
   """
   def enqueue(job_module, args \\ [])
   def enqueue(job_module, args) when is_list(args) do
-    job = Rex.Job.new(job_module, args)
+    job = ExJob.Job.new(job_module, args)
     :ok = QueueManager.enqueue(job)
     :ok = job.dispatcher.dispatch(QueueManager, job.queue_name)
     :ok
   end
   def enqueue(job_module, args) do
-    error = "expected list, got Rex.enqueue(#{inspect(job_module)}, #{inspect(args)})"
+    error = "expected list, got ExJob.enqueue(#{inspect(job_module)}, #{inspect(args)})"
     raise(ArgumentError, error)
   end
 

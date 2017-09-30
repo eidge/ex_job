@@ -1,11 +1,11 @@
-defmodule Rex.QueueManager do
+defmodule ExJob.QueueManager do
   defmodule NotWorkingError do
     defexception message: "Job was not found in the :working queue"
   end
 
   use GenServer
 
-  alias Rex.Queue
+  alias ExJob.Queue
 
   def start_link(args \\ [], opts \\ [name: __MODULE__]) do
     GenServer.start_link(__MODULE__, args, opts)
@@ -21,7 +21,7 @@ defmodule Rex.QueueManager do
     }
   end
 
-  def enqueue(name \\ __MODULE__, job = %Rex.Job{}) do
+  def enqueue(name \\ __MODULE__, job = %ExJob.Job{}) do
     GenServer.call(name, {:enqueue, job})
   end
 
@@ -29,11 +29,11 @@ defmodule Rex.QueueManager do
     GenServer.call(name, {:dequeue, queue_name})
   end
 
-  def notify_success(name \\ __MODULE__, job = %Rex.Job{}) do
+  def notify_success(name \\ __MODULE__, job = %ExJob.Job{}) do
     GenServer.call(name, {:notify_success, job})
   end
 
-  def notify_failure(name \\ __MODULE__, job = %Rex.Job{}) do
+  def notify_failure(name \\ __MODULE__, job = %ExJob.Job{}) do
     GenServer.call(name, {:notify_failure, job})
   end
 

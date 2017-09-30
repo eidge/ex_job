@@ -1,12 +1,12 @@
-defmodule RexTest do
+defmodule ExJobTest do
   use ExUnit.Case
 
   import ExUnit.CaptureLog
 
-  alias Rex.QueueManager
+  alias ExJob.QueueManager
 
   defmodule TestJob do
-    use Rex.Job
+    use ExJob.Job
 
     def perform(test_pid) do
       send(test_pid, :test_job_ack)
@@ -14,7 +14,7 @@ defmodule RexTest do
   end
 
   defmodule WaitToDie do
-    use Rex.Job
+    use ExJob.Job
 
     def perform(pid) do
       send pid, {:ping, self()}
@@ -29,7 +29,7 @@ defmodule RexTest do
   end
 
   defmodule AnotherWaitToDie do
-    use Rex.Job
+    use ExJob.Job
 
     def perform(pid) do
       send pid, {:ping, self()}
@@ -44,7 +44,7 @@ defmodule RexTest do
   end
 
   defmodule GroupedWaitToDie do
-    use Rex.Job
+    use ExJob.Job
 
     def group_by(key, _), do: key
 
@@ -61,7 +61,7 @@ defmodule RexTest do
   end
 
   defmodule InvalidJob do
-    use Rex.Job
+    use ExJob.Job
 
     def perform do
       :invalid_return_value
@@ -75,15 +75,15 @@ defmodule RexTest do
 
   describe "enqueue/2" do
     test "processes a job" do
-      :ok = Rex.enqueue(TestJob, [self()])
+      :ok = ExJob.enqueue(TestJob, [self()])
       assert_receive :test_job_ack
     end
 
     test "runs jobs in parallel for the same queue" do
-      :ok = Rex.enqueue(WaitToDie, [self()])
+      :ok = ExJob.enqueue(WaitToDie, [self()])
       assert_receive {:ping, pid1}
 
-      :ok = Rex.enqueue(WaitToDie, [self()])
+      :ok = ExJob.enqueue(WaitToDie, [self()])
       assert_receive {:ping, pid2}
       refute pid1 == pid2
 
@@ -92,10 +92,10 @@ defmodule RexTest do
     end
 
     test "runs jobs in parallel for different queues" do
-      :ok = Rex.enqueue(WaitToDie, [self()])
+      :ok = ExJob.enqueue(WaitToDie, [self()])
       assert_receive {:ping, pid1}
 
-      :ok = Rex.enqueue(AnotherWaitToDie, [self()])
+      :ok = ExJob.enqueue(AnotherWaitToDie, [self()])
       assert_receive {:ping, pid2}
       refute pid1 == pid2
 
@@ -104,15 +104,15 @@ defmodule RexTest do
     end
 
     test "runs jobs synchronously for the same queue" do
-      :ok = Rex.enqueue(GroupedWaitToDie, ["one_key", self()])
+      :ok = ExJob.enqueue(GroupedWaitToDie, ["one_key", self()])
       assert_receive {:ping, pid1, "one_key"}
 
-      :ok = Rex.enqueue(GroupedWaitToDie, ["other_key", self()])
+      :ok = ExJob.enqueue(GroupedWaitToDie, ["other_key", self()])
       assert_receive {:ping, pid2, "other_key"}
 
       # pid1 is still waiting for a message, so this job will only
       # run after pid1 terminates.
-      :ok = Rex.enqueue(GroupedWaitToDie, ["one_key", self()])
+      :ok = ExJob.enqueue(GroupedWaitToDie, ["one_key", self()])
       refute_receive {:ping, _, "one_key"}
 
       GroupedWaitToDie.terminate(pid1)
@@ -125,22 +125,22 @@ defmodule RexTest do
     @tag :capture_log
     test "raises exception if job does not return one of :ok, :error or {:error, reason}" do
       enqueue_invalid_job_fn = fn ->
-        :ok = Rex.enqueue(InvalidJob)
+        :ok = ExJob.enqueue(InvalidJob)
         :timer.sleep(20)
       end
-      assert capture_log(enqueue_invalid_job_fn) =~ "Expected `Elixir.RexTest.InvalidJob.perform/n` to return :ok, :error or {:error, reason}, got :invalid_return_value"
+      assert capture_log(enqueue_invalid_job_fn) =~ "Expected `Elixir.ExJobTest.InvalidJob.perform/n` to return :ok, :error or {:error, reason}, got :invalid_return_value"
     end
 
     test "raises helpful exception if second argument is not a list" do
       assert_raise ArgumentError,
-        "expected list, got Rex.enqueue(RexTest.TestJob, \"not a list\")",
-        fn -> Rex.enqueue(TestJob, "not a list") end
+        "expected list, got ExJob.enqueue(ExJobTest.TestJob, \"not a list\")",
+        fn -> ExJob.enqueue(TestJob, "not a list") end
     end
   end
 
   describe "info/0" do
     defmodule StepJob do
-      use Rex.Job
+      use ExJob.Job
 
       def perform(pid) do
         send(pid, {:success_job_start, self()})
@@ -168,7 +168,7 @@ defmodule RexTest do
     end
 
     test "returns job metrics" do
-      info = Rex.info()
+      info = ExJob.info()
       assert info.pending == 0
       assert info.processed == 0
       assert info.working == 0
@@ -177,9 +177,9 @@ defmodule RexTest do
     end
 
     test "follows job progress to success" do
-      :ok = Rex.enqueue(StepJob, [self()])
+      :ok = ExJob.enqueue(StepJob, [self()])
 
-      info = Rex.info()
+      info = ExJob.info()
       assert info.pending == 1
       assert info.working == 0
       assert info.processed == 0
@@ -187,7 +187,7 @@ defmodule RexTest do
 
       {:ok, pid} = StepJob.wait_for_job_to_start
 
-      info = Rex.info()
+      info = ExJob.info()
       assert info.pending == 0
       assert info.working == 1
       assert info.processed == 0
@@ -196,7 +196,7 @@ defmodule RexTest do
       :ok = StepJob.finish_job(pid)
       :timer.sleep(10)
 
-      info = Rex.info()
+      info = ExJob.info()
       assert info.pending == 0
       assert info.working == 0
       assert info.processed == 1
@@ -204,9 +204,9 @@ defmodule RexTest do
     end
 
     test "follows job progress to failed" do
-      :ok = Rex.enqueue(StepJob, [self()])
+      :ok = ExJob.enqueue(StepJob, [self()])
 
-      info = Rex.info()
+      info = ExJob.info()
       assert info.pending == 1
       assert info.working == 0
       assert info.processed == 0
@@ -214,7 +214,7 @@ defmodule RexTest do
 
       {:ok, pid} = StepJob.wait_for_job_to_start
 
-      info = Rex.info()
+      info = ExJob.info()
       assert info.pending == 0
       assert info.working == 1
       assert info.processed == 0
@@ -223,7 +223,7 @@ defmodule RexTest do
       :ok = StepJob.fail_job(pid)
       :timer.sleep(10)
 
-      info = Rex.info()
+      info = ExJob.info()
       assert info.pending == 0
       assert info.working == 0
       assert info.processed == 0
