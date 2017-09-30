@@ -20,12 +20,6 @@ defmodule Rex do
   Returns information on jobs, workers and queues.
   """
   def info do
-    %{
-      pending: 0,
-      processed: 0,
-      working: 0,
-      failed: 0,
-      queues: 0,
-    }
+    QueueManager.info()
   end
 end

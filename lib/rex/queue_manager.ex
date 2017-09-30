@@ -1,6 +1,6 @@
 defmodule Rex.QueueManager do
   defmodule NotWorkingError do
-    defexception message: "Job was not the found on the :working queue"
+    defexception message: "Job was not found in the :working queue"
   end
 
   use GenServer
@@ -11,11 +11,11 @@ defmodule Rex.QueueManager do
     GenServer.start_link(__MODULE__, args, opts)
   end
 
-  def init(args) do
-    {:ok, initial_state(args)}
+  def init(_args) do
+    {:ok, initial_state()}
   end
 
-  defp initial_state(_args) do
+  defp initial_state() do
     %{
       queues: %{pending: Map.new, working: Map.new}, processed_count: 0, failed_count: 0
     }
@@ -39,12 +39,6 @@ defmodule Rex.QueueManager do
 
   def info(name \\ __MODULE__) do
     GenServer.call(name, :info)
-  end
-
-  defp job_count(queues) do
-    Enum.reduce(queues, 0, fn {_, q}, total ->
-      Queue.size(q) + total
-    end)
   end
 
   defp queue_count(queues) do
@@ -95,6 +89,12 @@ defmodule Rex.QueueManager do
       queues: queue_count(queues.pending),
     }
     {:reply, info, state}
+  end
+
+  defp job_count(queues) do
+    Enum.reduce(queues, 0, fn {_, q}, total ->
+      Queue.size(q) + total
+    end)
   end
 
   defp enqueue_in(state, job_status, job) do

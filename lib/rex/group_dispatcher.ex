@@ -11,7 +11,7 @@ defmodule Rex.GroupDispatcher do
 
   def handle_cast({:dispatch, queue_manager, queue_name}, state) do
     {:ok, pid} = worker_for(queue_name)
-    Rex.Runner.enqueue(pid, queue_manager, queue_name)
+    Rex.Runner.run(pid, queue_manager, queue_name)
     {:noreply, state}
   end
 

@@ -12,7 +12,10 @@ defmodule Rex.Dispatcher do
   end
 
   def handle_cast({:dispatch, queue_manager, queue_name}, state) do
-    Runner.run_async(queue_manager, queue_name)
+    # Dispatcher should be a dynamic supervisor and enqueue the runner
+    # here.
+    {:ok, pid} = Runner.start_link()
+    Runner.run(pid, queue_manager, queue_name)
     {:noreply, state}
   end
 end

@@ -39,7 +39,7 @@ defmodule Rex.QueueTest do
     test "returns an empty list when the queue is empty" do
       queue = Queue.new
       list = Queue.to_list(queue)
-      assert list = []
+      assert ^list = []
     end
   end
 

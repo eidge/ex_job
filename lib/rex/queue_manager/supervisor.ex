@@ -1,8 +1,13 @@
 defmodule Rex.QueueManager.Supervisor do
+  use Supervisor
+
   def start_link(opts \\ []) do
     opts = Keyword.put_new(opts, :name, __MODULE__)
-    opts = Keyword.put_new(opts, :strategy, :rest_for_one)
-    Supervisor.start_link(children(), opts)
+    Supervisor.start_link(__MODULE__, nil, opts)
+  end
+
+  def init(_) do
+    Supervisor.init(children(), strategy: :rest_for_one)
   end
 
   defp children do
