@@ -1,4 +1,6 @@
 defmodule ExJob.QueueManager do
+  @moduledoc false
+
   defmodule NotWorkingError do
     defexception message: "Job was not found in the :working queue"
   end

@@ -1,4 +1,6 @@
 defmodule ExJob.Runner do
+  @moduledoc false
+
   use GenServer
 
   alias ExJob.QueueManager

@@ -1,4 +1,6 @@
 defmodule ExJob.Queue do
+  @moduledoc false
+
   @enforce_keys [:queue]
   defstruct [:queue]
 

@@ -1,4 +1,6 @@
 defmodule ExJob.Dispatcher do
+  @moduledoc false
+
   use GenServer
 
   alias ExJob.Runner
