@@ -1,27 +1,45 @@
 defmodule ExJob.GroupDispatcher do
   @moduledoc false
 
-  use GenServer
+  use Supervisor
 
-  def start_link(_opts), do: GenServer.start_link(__MODULE__, nil, name: __MODULE__)
+  def start_link(_opts), do: Supervisor.start_link(__MODULE__, nil, name: __MODULE__)
 
-  def init(nil), do: {:ok, nil}
-
-  def dispatch(queue_manager, queue_name) do
-    :ok = GenServer.cast(__MODULE__, {:dispatch, queue_manager, queue_name})
+  def init(_) do
+    Supervisor.init(children(), strategy: :one_for_one)
   end
 
-  def handle_cast({:dispatch, queue_manager, queue_name}, state) do
-    {:ok, pid} = worker_for(queue_name)
-    ExJob.Runner.run(pid, queue_manager, queue_name)
-    {:noreply, state}
+  defp children do
+    [{Registry, keys: :unique, name: __MODULE__.Registry}]
+  end
+
+  def dispatch(queue_manager, queue_name) do
+    pid = worker_for(queue_name)
+    :ok = ExJob.Runner.run(pid, queue_manager, queue_name)
   end
 
   defp worker_for(queue_name) do
-    queue_name = String.to_atom(queue_name) # Get rid of this, use a proper registry
-    case ExJob.Runner.start_link(name: queue_name) do
-      {:ok, _pid} = ok -> ok
-      {:error, {:already_started, pid}} -> {:ok, pid}
+    case Registry.lookup(__MODULE__.Registry, queue_name) do
+      [] -> start_worker(queue_name)
+      [{_, worker}] -> worker
+    end
+  end
+
+  defp start_worker(queue_name) do
+    # dispatch/2 will be called by foreign processes, meaning there is a race
+    # condition between creating a process and registering it.
+    #
+    # Because of that, if when we try to register the process it already exists,
+    # we kill the newly created process and re-use the existing one.
+    #
+    # We could prevent this by using a process to serialize access to the
+    # registry but it would make the entire thing slower.
+    {:ok, pid} = ExJob.Runner.start_link # FIXME: This should be added to the supervision tree.
+    case Registry.register(__MODULE__.Registry, queue_name, pid) do
+      {:ok, _} -> pid
+      {:error, {:already_registered, other_pid}} ->
+        Process.exit(pid, :kill)
+        other_pid
     end
   end
 end

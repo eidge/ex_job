@@ -4,13 +4,11 @@
   - We're using queues in places where we should be using maps to allow faster
     dequeueing and success/failure reports.
 
-- Get rid of the String.to_atom currently being used in GroupDispatcher. We
-  should use a Registry or a Process Pool to handle that.
-
 - Dispatcher is leaving zombie processes behind. It always starts a runner, and
   runners wait indefinitely for more jobs.
 
 - Runner should always be supervised.
+  - Search for ExJob.Runner.start_link
 
 - Job features
   - Implement Job.uniq_by/n, if this method is present, than there should be at
