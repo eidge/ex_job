@@ -14,9 +14,8 @@ defmodule ExJob.Dispatcher do
   end
 
   def handle_cast({:dispatch, queue_manager, queue_name}, state) do
-    # Dispatcher should be a dynamic supervisor and enqueue the runner
-    # here.
-    {:ok, pid} = Runner.start_link()
+    {:ok, pid} = Runner.Supervisor.start_child()
+    # FIXME: This runner will stay alive forever
     Runner.run(pid, queue_manager, queue_name)
     {:noreply, state}
   end

@@ -34,7 +34,10 @@ defmodule ExJob.GroupDispatcher do
     #
     # We could prevent this by using a process to serialize access to the
     # registry but it would make the entire thing slower.
-    {:ok, pid} = ExJob.Runner.start_link # FIXME: This should be added to the supervision tree.
+
+    # Can probably use the fact that the supervisor takes an id an returns
+    # already started and in that way get rid of the Registry
+    {:ok, pid} = ExJob.Runner.Supervisor.start_child()
     case Registry.register(__MODULE__.Registry, queue_name, pid) do
       {:ok, _} -> pid
       {:error, {:already_registered, other_pid}} ->

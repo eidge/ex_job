@@ -7,8 +7,7 @@
 - Dispatcher is leaving zombie processes behind. It always starts a runner, and
   runners wait indefinitely for more jobs.
 
-- Runner should always be supervised.
-  - Search for ExJob.Runner.start_link
+- Runners are being kept alive for ever (check Dispatcher)
 
 - Job features
   - Implement Job.uniq_by/n, if this method is present, than there should be at
