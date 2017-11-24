@@ -3,11 +3,7 @@ defmodule ExJob.Application do
 
   use Application
 
-  alias ExJob.QueueManager
-
   def start(_type, _args) do
-    children = [QueueManager.Supervisor]
-    opts = [strategy: :one_for_one, name: ExJob.Supervisor]
-    Supervisor.start_link(children, opts)
+    ExJob.Application.Supervisor.start_link()
   end
 end

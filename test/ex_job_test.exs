@@ -3,8 +3,6 @@ defmodule ExJobTest do
 
   import ExUnit.CaptureLog
 
-  alias ExJob.QueueManager
-
   defmodule TestJob do
     use ExJob.Job
 
@@ -69,7 +67,7 @@ defmodule ExJobTest do
   end
 
   setup do
-    start_supervised(QueueManager.Supervisor)
+    start_supervised(ExJob.Application.Supervisor)
     :ok
   end
 
