@@ -15,9 +15,18 @@ defmodule ExJob.Runner do
     GenServer.cast(pid, {:run, queue_manager, queue_name})
   end
 
+  def run_and_exit(pid, queue_manager, queue_name) do
+    GenServer.cast(pid, {:run_and_exit, queue_manager, queue_name})
+  end
+
   def handle_cast({:run, queue_manager, queue_name}, state) do
     do_run(queue_manager, queue_name)
     {:noreply, state}
+  end
+
+  def handle_cast({:run_and_exit, queue_manager, queue_name}, state) do
+    do_run(queue_manager, queue_name)
+    {:stop, :normal, state}
   end
 
   defp do_run(queue_manager, queue_name) do

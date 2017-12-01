@@ -16,12 +16,12 @@ defmodule ExJob.Runner.Supervisor do
   defp child_spec do
     Supervisor.child_spec(
       ExJob.Runner,
-      start: {ExJob.Runner, :start_link, [[]]},
-      restart: :transient
+      start: {ExJob.Runner, :start_link, []},
+      restart: :transient,
     )
   end
 
-  def start_child do
-    Supervisor.start_child(__MODULE__, [])
+  def start_child(options \\ []) do
+    Supervisor.start_child(__MODULE__, [options])
   end
 end

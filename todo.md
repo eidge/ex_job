@@ -4,10 +4,7 @@
   - We're using queues in places where we should be using maps to allow faster
     dequeueing and success/failure reports.
 
-- Dispatcher is leaving zombie processes behind. It always starts a runner, and
-  runners wait indefinitely for more jobs.
-
-- Runners are being kept alive for ever (check Dispatcher)
+- Runners are being kept alive for ever (check GroupDispatcher)
 
 - Job features
   - Implement Job.uniq_by/n, if this method is present, than there should be at

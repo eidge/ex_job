@@ -15,8 +15,7 @@ defmodule ExJob.Dispatcher do
 
   def handle_cast({:dispatch, queue_manager, queue_name}, state) do
     {:ok, pid} = Runner.Supervisor.start_child()
-    # FIXME: This runner will stay alive forever
-    Runner.run(pid, queue_manager, queue_name)
+    Runner.run_and_exit(pid, queue_manager, queue_name)
     {:noreply, state}
   end
 end
