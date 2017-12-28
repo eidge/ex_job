@@ -89,7 +89,7 @@ defmodule ExJob.QueueManagerTest do
       end
 
       pid = ctx.queue_manager
-      assert_received({:EXIT, ^pid, {%QueueManager.NotWorkingError{}, _}})
+      assert_received({:EXIT, ^pid, {%ExJob.Queue.NotWorkingError{}, _}})
     end
   end
 
@@ -119,7 +119,7 @@ defmodule ExJob.QueueManagerTest do
       end
 
       pid = ctx.queue_manager
-      assert_received({:EXIT, ^pid, {%QueueManager.NotWorkingError{}, _}})
+      assert_received({:EXIT, ^pid, {%ExJob.Queue.NotWorkingError{}, _}})
     end
   end
 

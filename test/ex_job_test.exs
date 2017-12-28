@@ -8,6 +8,7 @@ defmodule ExJobTest do
 
     def perform(test_pid) do
       send(test_pid, :test_job_ack)
+      :ok
     end
   end
 
