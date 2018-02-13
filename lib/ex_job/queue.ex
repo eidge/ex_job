@@ -5,7 +5,6 @@ defmodule ExJob.Queue do
     defexception message: "Job was not found in the :working queue"
   end
 
-  @enforce_keys [:pending, :working]
   defstruct [:pending, :working, processed_count: 0, failed_count: 0]
 
   def new do
@@ -31,8 +30,9 @@ defmodule ExJob.Queue do
 
   def done(queue = %__MODULE__{}, job, result) do
     if Map.has_key?(queue.working, job.ref) do
-      queue = increment(queue, map_result_to_count_key(result))
-      queue = %__MODULE__{queue | working: Map.delete(queue.working, job.ref)}
+      queue = queue
+      |> increment(map_result_to_count_key(result))
+      |> remove_from_working(job)
       {:ok, queue}
     else
       raise(NotWorkingError)
@@ -42,6 +42,10 @@ defmodule ExJob.Queue do
   defp map_result_to_count_key(:success), do: :processed_count
   defp map_result_to_count_key(:failure), do: :failed_count
 
+  defp remove_from_working(queue, job) do
+    %__MODULE__{queue | working: Map.delete(queue.working, job.ref)}
+  end
+
   def size(queue = %__MODULE__{}), do: size(queue, :pending)
   def size(queue = %__MODULE__{}, :pending) do
     pending_queue = Map.get(queue, :pending)
@@ -50,10 +54,6 @@ defmodule ExJob.Queue do
   def size(queue = %__MODULE__{}, :working) do
     pending_map = Map.get(queue, :working)
     Map.keys(pending_map) |> Enum.count
-  end
-
-  def to_list(queue = %__MODULE__{}) do
-    :queue.to_list(queue.pending)
   end
 
   def from_list(list) when is_list(list) do

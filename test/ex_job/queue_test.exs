@@ -7,8 +7,7 @@ defmodule ExJob.QueueTest do
   defmodule TestJob do
     use ExJob.Job
 
-    def perform(value) do
-      value
+    def perform(_) do
       :ok
     end
   end
@@ -75,8 +74,8 @@ defmodule ExJob.QueueTest do
       job2 = job()
       queue = Queue.from_list([job1, job2])
 
-      {:ok, queue, job} = Queue.dequeue(queue)
-      {:ok, queue, job} = Queue.dequeue(queue)
+      {:ok, queue, ^job1} = Queue.dequeue(queue)
+      {:ok, queue, ^job2} = Queue.dequeue(queue)
       assert queue.processed_count == 0
       assert queue.failed_count == 0
 
@@ -94,22 +93,6 @@ defmodule ExJob.QueueTest do
       assert_raise ExJob.Queue.NotWorkingError, fn ->
         Queue.done(queue, job(), :success)
       end
-    end
-  end
-
-  describe "to_list/1" do
-    test "returns a list of the currently queued jobs" do
-      queue = Queue.new
-      {:ok, queue} = Queue.enqueue(queue, job(1))
-      {:ok, queue} = Queue.enqueue(queue, job(2))
-      list = Queue.to_list(queue)
-      assert [%Job{arguments: [1]}, %Job{arguments: [2]}] = list
-    end
-
-    test "returns an empty list when the queue is empty" do
-      queue = Queue.new
-      list = Queue.to_list(queue)
-      assert ^list = []
     end
   end
 

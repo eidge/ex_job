@@ -3,7 +3,7 @@ defmodule ExJob.Job do
 
   alias ExJob.{Dispatcher, GroupDispatcher}
 
-  defstruct [:ref, :module, :arguments, :dispatcher, :queue_name, :arity]
+  defstruct [:ref, :module, :arguments, :dispatcher, :queue_name, :arity, :group_by]
 
   @doc false
   def new(job_module, args) do
@@ -18,7 +18,8 @@ defmodule ExJob.Job do
       arguments: args,
       dispatcher: dispatcher,
       queue_name: queue_name,
-      arity: job_module.arity()
+      arity: job_module.arity(),
+      group_by: group_by
     )
   end
 
