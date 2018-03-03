@@ -1,33 +1,33 @@
 defmodule ExJob.Job do
   @moduledoc false
 
-  alias ExJob.{Dispatcher, GroupDispatcher}
+  alias ExJob.Dispatcher
+  alias ExJob.Queue.{SimpleQueue, GroupedQueue}
 
-  defstruct [:ref, :module, :arguments, :dispatcher, :queue_name, :arity, :group_by]
+  defstruct [:ref, :module, :arguments, :dispatcher, :queue_module, :queue_name, :arity, :group_by]
 
   @doc false
   def new(job_module, args) do
     validate_arity!(job_module.arity(), args)
     group_by = apply(job_module, :group_by, args)
-    queue_name = queue_name(job_module, group_by)
-    dispatcher = dispatcher(group_by)
+    queue_name = to_string(job_module)
+    dispatcher = Dispatcher
+    queue_module = queue_module(group_by)
     struct!(
       __MODULE__,
       ref: make_ref(),
       module: job_module,
       arguments: args,
       dispatcher: dispatcher,
+      queue_module: queue_module,
       queue_name: queue_name,
       arity: job_module.arity(),
       group_by: group_by
     )
   end
 
-  defp queue_name(job_module, nil), do: to_string(job_module)
-  defp queue_name(job_module, group_by), do: "#{job_module}-#{group_by}"
-
-  defp dispatcher(nil), do: Dispatcher
-  defp dispatcher(_group_by), do: GroupDispatcher
+  defp queue_module(nil), do: SimpleQueue
+  defp queue_module(_group_by), do: GroupedQueue
 
   defp validate_arity!(arity, arguments) do
     arg_count = Enum.count(arguments)

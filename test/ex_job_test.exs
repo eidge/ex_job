@@ -115,7 +115,7 @@ defmodule ExJobTest do
       refute_receive {:ping, _, "one_key"}
 
       GroupedWaitToDie.terminate(pid1)
-      assert_receive {:ping, pid3, "one_key"}
+      assert_receive {:ping, pid3, "one_key"}, 5_000
 
       GroupedWaitToDie.terminate(pid2)
       GroupedWaitToDie.terminate(pid3)

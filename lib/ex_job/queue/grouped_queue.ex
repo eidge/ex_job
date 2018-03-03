@@ -1,4 +1,4 @@
-defmodule ExJob.GroupedQueue do
+defmodule ExJob.Queue.GroupedQueue do
   @moduledoc false
 
   defmodule JobNotGroupedError do
@@ -14,21 +14,33 @@ defmodule ExJob.GroupedQueue do
     struct!(%__MODULE__{}, %{})
   end
 
-  def enqueue(%__MODULE__{}, %{group_by: nil}), do: throw(JobNotGroupedError)
-  def enqueue(grouped_queue = %__MODULE__{}, job) do
+  def from_list(list) when is_list(list) do
+    Enum.reduce(list, new(), fn job, grouped_queue ->
+      {:ok, grouped_queue} = Queue.enqueue(grouped_queue, job)
+      grouped_queue
+    end)
+  end
+end
+
+defimpl ExJob.Queue, for: ExJob.Queue.GroupedQueue do
+  alias ExJob.Queue
+  alias ExJob.Queue.{GroupedQueue, SimpleQueue}
+
+  def enqueue(%GroupedQueue{}, %{group_by: nil}), do: throw(JobNotGroupedError)
+  def enqueue(grouped_queue = %GroupedQueue{}, job) do
     {:ok, queue} = get_queue(grouped_queue, job.group_by) |> Queue.enqueue(job)
     queues = Map.put(grouped_queue.queues, job.group_by, queue)
     ages = Map.update(grouped_queue.ages, job.group_by, [grouped_queue.age], fn ages ->
       ages ++ [grouped_queue.age]
     end)
     new_age = grouped_queue.age + 1
-    {:ok, %__MODULE__{grouped_queue | queues: queues, age: new_age, ages: ages}}
+    {:ok, %GroupedQueue{grouped_queue | queues: queues, age: new_age, ages: ages}}
   end
 
   defp get_queue(grouped_queue, group_by),
-    do: Map.get(grouped_queue.queues, group_by, Queue.new)
+    do: Map.get(grouped_queue.queues, group_by, SimpleQueue.new)
 
-  def dequeue(grouped_queue = %__MODULE__{}) do
+  def dequeue(grouped_queue = %GroupedQueue{}) do
     if size(grouped_queue, :pending) == 0 do
       {:error, :empty}
     else
@@ -38,7 +50,7 @@ defmodule ExJob.GroupedQueue do
         {:ok, queue, job} = get_queue(grouped_queue, next_queue) |> Queue.dequeue
         queues = Map.put(grouped_queue.queues, next_queue, queue)
         working = Map.put(grouped_queue.working, next_queue, job)
-        {:ok, %__MODULE__{grouped_queue | queues: queues, working: working}, job}
+        {:ok, %GroupedQueue{grouped_queue | queues: queues, working: working}, job}
       else
         {:wait, :all_groups_working}
       end
@@ -63,7 +75,7 @@ defmodule ExJob.GroupedQueue do
 
   defp working?(%{working: working}, queue), do: Map.has_key?(working, queue)
 
-  def done(grouped_queue = %__MODULE__{}, job, result) do
+  def done(grouped_queue = %GroupedQueue{}, job, result) do
     if working?(grouped_queue, job.group_by) do
       grouped_queue = grouped_queue
       |> increment(map_result_to_count_key(result))
@@ -83,24 +95,17 @@ defmodule ExJob.GroupedQueue do
 
   defp remove_from_working(grouped_queue, job) do
     working = Map.delete(grouped_queue.working, job.group_by)
-    %__MODULE__{grouped_queue | working: working}
+    %GroupedQueue{grouped_queue | working: working}
   end
 
-  def size(grouped_queue = %__MODULE__{}), do: size(grouped_queue, :pending)
-  def size(grouped_queue = %__MODULE__{}, :pending) do
+  def size(grouped_queue = %GroupedQueue{}), do: size(grouped_queue, :pending)
+  def size(grouped_queue = %GroupedQueue{}, :pending) do
     grouped_queue.queues
     |> Map.values
     |> Enum.map(&Queue.size/1)
     |> Enum.sum
   end
-  def size(grouped_queue = %__MODULE__{}, :working) do
+  def size(grouped_queue = %GroupedQueue{}, :working) do
     Enum.count(grouped_queue.working)
-  end
-
-  def from_list(list) when is_list(list) do
-    Enum.reduce(list, new(), fn job, grouped_queue ->
-      {:ok, grouped_queue} = enqueue(grouped_queue, job)
-      grouped_queue
-    end)
   end
 end

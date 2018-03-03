@@ -1,7 +1,5 @@
 # TODO
 
-- Runners are being kept alive for ever (check GroupDispatcher)
-
 - Job features
   - Implement Job.uniq_by/n, if this method is present, than there should be at
     most one pending job for that key ever (think subscribed services).
