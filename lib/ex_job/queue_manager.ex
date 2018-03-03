@@ -43,26 +43,32 @@ defmodule ExJob.QueueManager do
 
   def handle_call({:enqueue, job}, _from, state) do
     {:ok, queue} = state.queues
-    |> get_queue(job.queue_name)
+    |> get_queue(job)
     |> Queue.enqueue(job)
     state = put_in(state, [:queues, job.queue_name], queue)
     {:reply, :ok, state}
   end
 
-  def handle_call({:dequeue, queue_name}, _from, state) do
-    queue = get_queue(state.queues, queue_name)
+  def handle_call({:dequeue, queue_name}, _from, state) when is_binary(queue_name) do
+    queue = get_queue(state.queues, %{queue_name: queue_name})
     case Queue.dequeue(queue) do
       {:ok, queue, job} ->
         new_state = put_in(state, [:queues, job.queue_name], queue)
         {:reply, {:ok, job}, new_state}
+      {:wait, _} = wait ->
+        {:reply, wait, state}
       {:error, _} = error ->
         {:reply, error, state}
     end
   end
+  def handle_call({:dequeue, queue_name}, from, state) do
+    queue_name = to_string(queue_name)
+    handle_call({:dequeue, queue_name}, from, state)
+  end
 
   def handle_call({:notify, job, result}, _from, state) do
     {:ok, queue} = state.queues
-    |> get_queue(job.queue_name)
+    |> get_queue(job)
     |> Queue.done(job, result)
     state = put_in(state, [:queues, job.queue_name], queue)
     {:reply, :ok, state}
@@ -83,9 +89,10 @@ defmodule ExJob.QueueManager do
     {:reply, info, state}
   end
 
-  defp get_queue(queues, queue_name) when is_atom(queue_name),
-    do: get_queue(queues, to_string(queue_name))
-  defp get_queue(queues, queue_name), do: Map.get(queues, queue_name, Queue.new)
+  defp get_queue(queues, %{queue_name: queue_name, queue_module: queue}),
+    do: Map.get(queues, queue_name, queue.new)
+  defp get_queue(queues, %{queue_name: queue_name}),
+    do: Map.get(queues, queue_name, Queue.SimpleQueue.new)
 
   defp count_queues(queues, fun) do
     Enum.reduce(queues, 0, fn {_, queue}, memo ->

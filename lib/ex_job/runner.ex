@@ -30,12 +30,17 @@ defmodule ExJob.Runner do
   end
 
   defp do_run(queue_manager, queue_name) do
-    {:ok, job} = QueueManager.dequeue(queue_manager, queue_name)
-    case apply(job.module, :perform, job.arguments) do
-      :ok -> QueueManager.notify_success(queue_manager, job)
-      :error -> QueueManager.notify_failure(queue_manager, job)
-      {:error, _} -> QueueManager.notify_failure(queue_manager, job)
-      return_value -> raise ArgumentError, "Expected `#{job.module}.perform/n` to return :ok, :error or {:error, reason}, got #{inspect(return_value)}"
+    case QueueManager.dequeue(queue_manager, queue_name) do
+      {:ok, job} ->
+        case apply(job.module, :perform, job.arguments) do
+          :ok -> QueueManager.notify_success(queue_manager, job)
+          :error -> QueueManager.notify_failure(queue_manager, job)
+          {:error, _} -> QueueManager.notify_failure(queue_manager, job)
+          return_value -> raise ArgumentError, "Expected `#{job.module}.perform/n` to return :ok, :error or {:error, reason}, got #{inspect(return_value)}"
+        end
+      {:wait, _} ->
+        :timer.sleep(20)
+        do_run(queue_manager, queue_name)
     end
   end
 end

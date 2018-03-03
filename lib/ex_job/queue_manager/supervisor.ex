@@ -14,7 +14,6 @@ defmodule ExJob.QueueManager.Supervisor do
 
   defp children do
     [
-      ExJob.GroupDispatcher,
       ExJob.Dispatcher,
       ExJob.QueueManager,
     ]

@@ -2,7 +2,7 @@ defmodule ExJob.Mixfile do
   use Mix.Project
 
   @app :ex_job
-  @version "0.2.0"
+  @version "0.2.1"
   @github "https://github.com/eidge/ex_job"
 
   def project do

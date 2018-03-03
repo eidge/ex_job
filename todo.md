@@ -1,7 +1,5 @@
 # TODO
 
-- Runners are being kept alive for ever (check GroupDispatcher)
-
 - Job features
   - Implement Job.uniq_by/n, if this method is present, than there should be at
     most one pending job for that key ever (think subscribed services).
@@ -26,6 +24,13 @@
     just a field in the struct).
     - Maybe even move the entire queue metrics to it's own structure with
       increment and getter methods?
-  - Add a Queue Behaviour
-    - Make Queue and GroupedQueue implement it
-    - Move generic errors there (NotWorkingError, for instance)
+
+- Support distributed workers
+  - First thought is implement a leader + followers
+  - Raft or similar for leader election
+  - Do we want to optimize for speed or safety?
+    - I.E.- Strong or eventual consistency?
+    - Eventual consistency prevents us from guarantying at least once delivery
+      if a node fails.
+    - Strong consistency might be too slow, specially if clusters are located in
+      different zones.
