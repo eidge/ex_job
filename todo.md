@@ -8,8 +8,6 @@
       group_by(key), do: key
       uniq, do: true
 
-  - Add concurrency limit (poolboy?, register?) both global and per job.
-
 - Add a way to import jobs from redis (sidekiq, resque, etc), probably in a
   different mix package.
 
@@ -24,6 +22,7 @@
     just a field in the struct).
     - Maybe even move the entire queue metrics to it's own structure with
       increment and getter methods?
+  - Start pipelines automatically based off of meta-programming
 
 - Support distributed workers
   - First thought is implement a leader + followers

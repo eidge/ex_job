@@ -1,7 +1,7 @@
 defmodule ExJob.Application.Supervisor do
   use Supervisor
 
-  alias ExJob.{QueueManager, Runner}
+  alias ExJob.Central
 
   def start_link(_args \\ []) do
     Supervisor.start_link(__MODULE__, nil, name: __MODULE__)
@@ -12,6 +12,6 @@ defmodule ExJob.Application.Supervisor do
   end
 
   defp children do
-    [QueueManager.Supervisor, Runner.Supervisor]
+    [{Central, name: Central}]
   end
 end

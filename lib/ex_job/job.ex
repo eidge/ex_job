@@ -1,38 +1,37 @@
 defmodule ExJob.Job do
   @moduledoc false
 
-  alias ExJob.Dispatcher
   alias ExJob.Queue.{SimpleQueue, GroupedQueue}
 
-  defstruct [:ref, :module, :arguments, :dispatcher, :queue_module, :queue_name, :arity, :group_by]
+  defstruct [:ref, :module, :arguments, :arity, :group_by]
 
   @doc false
   def new(job_module, args) do
     validate_arity!(job_module.arity(), args)
     group_by = apply(job_module, :group_by, args)
-    queue_name = to_string(job_module)
-    dispatcher = Dispatcher
-    queue_module = queue_module(group_by)
     struct!(
       __MODULE__,
       ref: make_ref(),
       module: job_module,
       arguments: args,
-      dispatcher: dispatcher,
-      queue_module: queue_module,
-      queue_name: queue_name,
       arity: job_module.arity(),
       group_by: group_by
     )
   end
 
-  defp queue_module(nil), do: SimpleQueue
-  defp queue_module(_group_by), do: GroupedQueue
-
   defp validate_arity!(arity, arguments) do
     arg_count = Enum.count(arguments)
     if arity != arg_count do
       raise ArgumentError, "#{inspect(__MODULE__)}.perform/#{arity} takes #{arity} arguments but #{arg_count} arguments were given (arguments: #{inspect(arguments)})"
+    end
+  end
+
+  def run(job = %__MODULE__{}) do
+    case apply(job.module, :perform, job.arguments) do
+      :ok -> :ok
+      :error -> :error
+      {:error, _} = error -> error
+      return_value -> raise ArgumentError, "Expected `#{job.module}.perform/n` to return :ok, :error or {:error, reason}, got #{inspect(return_value)}"
     end
   end
 
@@ -75,6 +74,9 @@ defmodule ExJob.Job do
       @group_by_defined false
 
       @before_compile unquote(__MODULE__)
+
+      def concurrency, do: Application.get_env(:ex_job, :default_concurrency, 10)
+      defoverridable [concurrency: 0]
     end
   end
 
@@ -98,7 +100,11 @@ defmodule ExJob.Job do
 
       if !group_by_arity do
         Kernel.def group_by(unquote_splicing(Macro.generate_arguments(arity, module))), do: nil
+        Kernel.def new_queue, do: SimpleQueue.new()
+      else
+        Kernel.def new_queue, do: GroupedQueue.new()
       end
+      defoverridable [new_queue: 0]
 
       if arity && group_by_arity && arity != group_by_arity do
         raise(

@@ -83,7 +83,7 @@ defmodule ExJobTest do
       assert_receive {:ping, pid1}
 
       :ok = ExJob.enqueue(WaitToDie, [self()])
-      assert_receive {:ping, pid2}
+      assert_receive {:ping, pid2}, 1000
       refute pid1 == pid2
 
       WaitToDie.terminate(pid1)
@@ -141,6 +141,8 @@ defmodule ExJobTest do
     defmodule StepJob do
       use ExJob.Job
 
+      def group_by(_), do: 1
+
       def perform(pid) do
         send(pid, {:success_job_start, self()})
         receive do
@@ -175,57 +177,29 @@ defmodule ExJobTest do
       assert info.queues == 0
     end
 
-    test "follows job progress to success" do
+    test "follows job progress" do
+      # Starts two grouped jobs, second job will be pending
+      # until the first one finishes.
       :ok = ExJob.enqueue(StepJob, [self()])
+      :ok = ExJob.enqueue(StepJob, [self()])
+
+      {:ok, pid1} = StepJob.wait_for_job_to_start
 
       info = ExJob.info()
       assert info.pending == 1
-      assert info.working == 0
-      assert info.processed == 0
-      assert info.failed == 0
-
-      {:ok, pid} = StepJob.wait_for_job_to_start
-
-      info = ExJob.info()
-      assert info.pending == 0
       assert info.working == 1
       assert info.processed == 0
       assert info.failed == 0
 
-      :ok = StepJob.finish_job(pid)
-      :timer.sleep(10)
+      :ok = StepJob.finish_job(pid1)
+
+      {:ok, pid2} = StepJob.wait_for_job_to_start
+      :ok = StepJob.fail_job(pid2)
 
       info = ExJob.info()
       assert info.pending == 0
       assert info.working == 0
       assert info.processed == 1
-      assert info.failed == 0
-    end
-
-    test "follows job progress to failed" do
-      :ok = ExJob.enqueue(StepJob, [self()])
-
-      info = ExJob.info()
-      assert info.pending == 1
-      assert info.working == 0
-      assert info.processed == 0
-      assert info.failed == 0
-
-      {:ok, pid} = StepJob.wait_for_job_to_start
-
-      info = ExJob.info()
-      assert info.pending == 0
-      assert info.working == 1
-      assert info.processed == 0
-      assert info.failed == 0
-
-      :ok = StepJob.fail_job(pid)
-      :timer.sleep(10)
-
-      info = ExJob.info()
-      assert info.pending == 0
-      assert info.working == 0
-      assert info.processed == 0
       assert info.failed == 1
     end
   end

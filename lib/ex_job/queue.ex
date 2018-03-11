@@ -1,5 +1,5 @@
 defprotocol ExJob.Queue do
-  @doc "Implements queue logic for the QueueManager to handle"
+  @doc "Implements a queue"
 
   def enqueue(queue, job)
   def dequeue(queue)
