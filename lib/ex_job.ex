@@ -95,7 +95,7 @@ defmodule ExJob do
   ```
   """
 
-  alias ExJob.QueueManager
+  alias ExJob.{Central, Pipeline}
 
   @doc """
   Enqueues a job that will be processed by **job_module** with **args**
@@ -104,9 +104,8 @@ defmodule ExJob do
   def enqueue(job_module, args \\ [])
   def enqueue(job_module, args) when is_list(args) do
     job = ExJob.Job.new(job_module, args)
-    :ok = QueueManager.enqueue(job)
-    :ok = job.dispatcher.dispatch(QueueManager, job.queue_name)
-    :ok
+    {:ok, pipeline} = Central.pipeline_for(job_module)
+    :ok = Pipeline.enqueue(pipeline, job)
   end
   def enqueue(job_module, args) do
     error = "expected list, got ExJob.enqueue(#{inspect(job_module)}, #{inspect(args)})"
@@ -117,6 +116,6 @@ defmodule ExJob do
   Returns information on jobs, workers and queues.
   """
   def info do
-    QueueManager.info()
+    Central.info()
   end
 end

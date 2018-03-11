@@ -24,6 +24,7 @@
     just a field in the struct).
     - Maybe even move the entire queue metrics to it's own structure with
       increment and getter methods?
+  - Start pipelines automatically based off of meta-programming
 
 - Support distributed workers
   - First thought is implement a leader + followers
