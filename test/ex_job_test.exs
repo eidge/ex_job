@@ -72,6 +72,58 @@ defmodule ExJobTest do
     :ok
   end
 
+  describe "persistence" do
+    alias ExJob.WAL.Events.{FileCreated, JobEnqueued, JobStarted, JobDone}
+
+    defmodule WALJob do
+      use ExJob.Job
+
+      defstruct [:job_module]
+
+      def perform(return_value) do
+        ExJob.WAL.append(%WALJob{job_module: WALJob})
+        return_value
+      end
+    end
+
+    test "writes to WAL when is successful" do
+      :ok = ExJob.enqueue(WALJob, [:ok])
+      events = wait_for_wal_events(5)
+      assert [
+        %FileCreated{},
+        %JobEnqueued{},
+        %JobStarted{},
+        %WALJob{},
+        %JobDone{state: :success}
+      ] = events
+    end
+
+    test "writes to WAL when it fails" do
+      :ok = ExJob.enqueue(WALJob, [:error])
+      events = wait_for_wal_events(5)
+      assert [
+        %FileCreated{},
+        %JobEnqueued{},
+        %JobStarted{},
+        %WALJob{},
+        %JobDone{state: :failure}
+      ] = events
+    end
+
+    defp wait_for_wal_events(n, timeout \\ 100, elapsed \\ 0) do
+      interval = 10
+      {:ok, events} = ExJob.WAL.events(WALJob)
+      count = Enum.count(events)
+      if count == n || elapsed > timeout do
+        assert count == n
+        events
+      else
+        :timer.sleep(interval)
+        wait_for_wal_events(n, timeout, elapsed + interval)
+      end
+    end
+  end
+
   describe "enqueue/2" do
     test "processes a job" do
       :ok = ExJob.enqueue(TestJob, [self()])
@@ -185,6 +237,7 @@ defmodule ExJobTest do
 
       {:ok, pid1} = StepJob.wait_for_job_to_start
 
+      :timer.sleep(10)
       info = ExJob.info()
       assert info.pending == 1
       assert info.working == 1
@@ -196,6 +249,7 @@ defmodule ExJobTest do
       {:ok, pid2} = StepJob.wait_for_job_to_start
       :ok = StepJob.fail_job(pid2)
 
+      :timer.sleep(10)
       info = ExJob.info()
       assert info.pending == 0
       assert info.working == 0

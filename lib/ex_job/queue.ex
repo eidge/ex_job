@@ -6,6 +6,7 @@ defprotocol ExJob.Queue do
   def done(queue, job, result)
   def size(queue)
   def size(queue, state)
+  def working(queue)
 end
 
 defmodule ExJob.Queue.NotWorkingError do

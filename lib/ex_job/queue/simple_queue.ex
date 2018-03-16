@@ -64,4 +64,8 @@ defimpl ExJob.Queue, for: ExJob.Queue.SimpleQueue do
   defp increment(queue, count_type) do
     Map.update!(queue, count_type, &(&1 + 1))
   end
+
+  def working(queue) do
+    Map.values(queue.working)
+  end
 end

@@ -108,4 +108,8 @@ defimpl ExJob.Queue, for: ExJob.Queue.GroupedQueue do
   def size(grouped_queue = %GroupedQueue{}, :working) do
     Enum.count(grouped_queue.working)
   end
+
+  def working(grouped_queue) do
+    Map.values(grouped_queue.working)
+  end
 end

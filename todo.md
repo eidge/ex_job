@@ -7,9 +7,25 @@
     Something like:
       group_by(key), do: key
       uniq, do: true
+  - Job retries
+    - Change WAL to retry jobs after reading all events rather than simply
+        failing the jobs
 
 - Add a way to import jobs from redis (sidekiq, resque, etc), probably in a
   different mix package.
+
+- Add a way to wait for a job to finish, once we have this, get rid of all the 
+:timer.sleep in tests.
+
+- Allow WAL.File to write asynchronously to the log (via config flag) - this
+  gets us another 20/50% improvement in performance, trading for security and
+  at least once guarantees.
+
+  - Maybe write append synchronously, but all other events asynchronously?
+  - Make the WAL payload smaller
+
+- Add WAL snapshots so that we don't always have to recompute the entire state
+  from the WAL.
 
 - Refactor:
   - GroupedQueue is currently a mess implemented during a spike to make the
@@ -22,9 +38,17 @@
     just a field in the struct).
     - Maybe even move the entire queue metrics to it's own structure with
       increment and getter methods?
+    - Or implement it by listening to WAL events.
   - Start pipelines automatically based off of meta-programming
 
+- WAL
+  - Configurable buffer size (0 - consistent, * - prone to inconsistency but
+    faster)
+
 - Support distributed workers
+  - If we separate the Queue from the Source, then we can have one machine with
+    all the queues and separate the worker pipelines to different machines -
+    this seems like the most viable option.
   - First thought is implement a leader + followers
   - Raft or similar for leader election
   - Do we want to optimize for speed or safety?

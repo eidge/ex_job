@@ -16,6 +16,10 @@ defmodule ExJob.Pipeline do
     Supervisor.start_link(__MODULE__, job_module, opts)
   end
 
+  def stop(supervisor, reason \\ :normal) do
+    Supervisor.stop(supervisor, reason)
+  end
+
   def init(job_module) do
     children = children_for(job_module)
     Supervisor.init(children, strategy: :one_for_one)
