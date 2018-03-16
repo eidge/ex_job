@@ -21,4 +21,8 @@ erl_crash.dump
 
 .tool-versions
 
+.*.wal
+
+.test_wal/*
+
 tags

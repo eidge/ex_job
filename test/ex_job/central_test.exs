@@ -11,6 +11,12 @@ defmodule ExJob.CentralTest do
     end
   end
 
+  setup do
+    spec = %{id: WAL, start: {GenServer, :start_link, [ExJob.WAL, ".test_wal", [name: ExJob.WAL]]}}
+    {:ok, _} = start_supervised(spec)
+    :ok
+  end
+
   describe "pipeline_for/2" do
     test "starts named pipeline for job if it doesn't exist yet" do
       {:ok, central} = Central.start_link([])

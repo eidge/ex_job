@@ -21,6 +21,12 @@ defmodule ExJob.PipelineTest do
     end
   end
 
+  setup do
+    spec = %{id: WAL, start: {GenServer, :start_link, [ExJob.WAL, ".test_wal", [name: ExJob.WAL]]}}
+    {:ok, _} = start_supervised(spec)
+    :ok
+  end
+
   test "enqueues jobs" do
     {:ok, pid} = Pipeline.start_link(job_module: TestJob)
     job = Job.new(TestJob, [fn -> nil end])
@@ -36,6 +42,27 @@ defmodule ExJob.PipelineTest do
     :ok = Pipeline.enqueue(pid, job)
 
     assert_receive :ack
+  end
+
+  test "recovers state from WAL" do
+    test_pid = self()
+    wait_forever_fn = fn ->
+      send(test_pid, :ack)
+      :timer.sleep(:infinity)
+    end
+    {:ok, pid} = Pipeline.start_link(job_module: TestJob)
+    job = Job.new(TestJob, [wait_forever_fn])
+    :ok = Pipeline.enqueue(pid, job)
+
+    assert_receive :ack
+    assert %{working: 1, failed: 0} = Pipeline.info(pid)
+
+    # kill currently working job
+    :ok = Pipeline.stop(pid)
+    refute Process.alive?(pid)
+
+    {:ok, pid} = Pipeline.start_link(job_module: TestJob)
+    assert %{working: 0, failed: 1} = Pipeline.info(pid)
   end
 
   describe "concurrency" do
@@ -113,6 +140,7 @@ defmodule ExJob.PipelineTest do
 
       :ok = Pipeline.enqueue(pid, job)
       assert_receive :ack
+      :timer.sleep(10)
 
       info = Pipeline.info(pid)
       assert info.pending == 0
@@ -129,6 +157,7 @@ defmodule ExJob.PipelineTest do
 
       :ok = Pipeline.enqueue(pid, job)
       assert_receive :ack
+      :timer.sleep(10)
 
       info = Pipeline.info(pid)
       assert info.pending == 0

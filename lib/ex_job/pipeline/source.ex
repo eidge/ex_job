@@ -3,7 +3,8 @@ defmodule ExJob.Pipeline.Source do
 
   use GenStage
 
-  alias ExJob.Queue
+  alias ExJob.{WAL, Queue}
+  alias ExJob.WAL.Events
 
   def start_link(args \\ []) do
     job_module = Keyword.get(args, :job_module)
@@ -13,15 +14,20 @@ defmodule ExJob.Pipeline.Source do
 
   def init(job_module), do: {:producer, initial_state(job_module)}
 
-  defp initial_state(job_module), do: %{queue: job_module.new_queue(), demand: 0}
+  defp initial_state(job_module) do
+    {:ok, queue} = WAL.read(job_module)
+    %{queue: queue, demand: 0}
+  end
 
   def enqueue(pid, job), do: GenStage.call(pid, {:enqueue, job})
 
   def notify_success(pid, job) do
+    WAL.append(Events.JobDone.new(job, :success))
     GenStage.call(pid, {:notify, job, :success})
   end
 
   def notify_failure(pid, job) do
+    WAL.append(Events.JobDone.new(job, :failure))
     GenStage.call(pid, {:notify, job, :failure})
   end
 
@@ -30,6 +36,7 @@ defmodule ExJob.Pipeline.Source do
   end
 
   def handle_call({:enqueue, job}, _from, state) do
+    :ok = WAL.append(Events.JobEnqueued.new(job))
     {:ok, queue} = Queue.enqueue(state.queue, job)
     state = %{state | queue: queue}
     async_emit_events()
@@ -71,6 +78,7 @@ defmodule ExJob.Pipeline.Source do
   defp emit_events(state, events) do
     case Queue.dequeue(state.queue) do
       {:ok, queue, job} ->
+        :ok = WAL.append(Events.JobStarted.new(job))
         demand = state.demand - 1
         state = %{state | queue: queue, demand: demand}
         events = [job | events]

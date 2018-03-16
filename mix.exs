@@ -10,6 +10,7 @@ defmodule ExJob.Mixfile do
       app: @app,
       version: @version,
       elixir: "~> 1.5",
+      consolidate_protocols: Mix.env != :test,
       description: "Zero dependency, ultra-fast, background job processing library.",
       package: package(),
       start_permanent: Mix.env == :prod,
