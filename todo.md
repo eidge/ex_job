@@ -17,10 +17,10 @@
 - Add a way to wait for a job to finish, once we have this, get rid of all the 
 :timer.sleep in tests.
 
-- Add WAL snapshots so that we don't always have to recompute the entire state
-  from the WAL.
+- Rotate WAL.State logs
 
 - Refactor:
+  - Use a registry to process names rather than dynamically creating atoms
   - GroupedQueue is currently a mess implemented during a spike to make the
     tests pass.
     - Make the code cleaner
