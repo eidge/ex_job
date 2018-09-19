@@ -2,6 +2,7 @@ defmodule ExJob.PipelineTest do
   use ExUnit.Case
 
   alias ExJob.{Job, Pipeline}
+  alias ExJob.WAL.Events
 
   defmodule TestJob do
     use ExJob.Job
@@ -22,7 +23,11 @@ defmodule ExJob.PipelineTest do
   end
 
   setup do
-    spec = %{id: WAL, start: {GenServer, :start_link, [ExJob.WAL, ".test_wal", [name: ExJob.WAL]]}}
+    spec = %{
+      id: WAL,
+      start: {GenServer, :start_link, [ExJob.WAL, ".test_wal", [name: ExJob.WAL]]}
+    }
+
     {:ok, _} = start_supervised(spec)
     :ok
   end
@@ -35,7 +40,7 @@ defmodule ExJob.PipelineTest do
 
   test "runs enqueued jobs" do
     pid = self()
-    ack_fn = fn -> send pid, :ack end
+    ack_fn = fn -> send(pid, :ack) end
 
     {:ok, pid} = Pipeline.start_link(job_module: TestJob)
     job = Job.new(TestJob, [ack_fn])
@@ -44,25 +49,59 @@ defmodule ExJob.PipelineTest do
     assert_receive :ack
   end
 
-  test "recovers state from WAL" do
-    test_pid = self()
-    wait_forever_fn = fn ->
-      send(test_pid, :ack)
-      :timer.sleep(:infinity)
+  describe "persistence" do
+    test "recovers state from WAL" do
+      test_pid = self()
+
+      wait_forever_fn = fn ->
+        send(test_pid, :ack)
+        :timer.sleep(:infinity)
+      end
+
+      {:ok, pid} = Pipeline.start_link(job_module: TestJob)
+      job = Job.new(TestJob, [wait_forever_fn])
+      :ok = Pipeline.enqueue(pid, job)
+
+      assert_receive :ack
+      assert %{working: 1, failed: 0} = Pipeline.info(pid)
+
+      # kill currently working job
+      :ok = Pipeline.stop(pid)
+      refute Process.alive?(pid)
+
+      {:ok, pid} = Pipeline.start_link(job_module: TestJob)
+      assert %{working: 0, failed: 1} = Pipeline.info(pid)
     end
-    {:ok, pid} = Pipeline.start_link(job_module: TestJob)
-    job = Job.new(TestJob, [wait_forever_fn])
-    :ok = Pipeline.enqueue(pid, job)
 
-    assert_receive :ack
-    assert %{working: 1, failed: 0} = Pipeline.info(pid)
+    test "writes snapshot periodically" do
+      Application.put_env(:ex_job, :snapshot_period, 2)
+      test_pid = self()
 
-    # kill currently working job
-    :ok = Pipeline.stop(pid)
-    refute Process.alive?(pid)
+      wait_forever_fn = fn ->
+        send(test_pid, :ack)
+        :timer.sleep(:infinity)
+      end
 
-    {:ok, pid} = Pipeline.start_link(job_module: TestJob)
-    assert %{working: 0, failed: 1} = Pipeline.info(pid)
+      job = fn -> Job.new(TestJob, [wait_forever_fn]) end
+
+      {:ok, pid} = Pipeline.start_link(job_module: TestJob)
+
+      :ok = Pipeline.enqueue(pid, job.())
+      :ok = Pipeline.enqueue(pid, job.())
+
+      # Wait for both enqueued jobs to start
+      assert_receive :ack
+      assert_receive :ack
+
+      {:ok, events} = ExJob.WAL.events(TestJob)
+      refute Enum.any?(events, &match?(%Events.QueueSnapshot{}, &1))
+
+      :ok = Pipeline.enqueue(pid, job.())
+      assert_receive :ack
+
+      {:ok, events} = ExJob.WAL.events(TestJob)
+      assert Enum.any?(events, &match?(%Events.QueueSnapshot{}, &1))
+    end
   end
 
   describe "concurrency" do
@@ -72,7 +111,8 @@ defmodule ExJob.PipelineTest do
       def concurrency, do: 1
 
       def perform(test_pid) do
-        send test_pid, {:waiting_job, self()}
+        send(test_pid, {:waiting_job, self()})
+
         receive do
           :finish -> :ok
         end
@@ -85,7 +125,8 @@ defmodule ExJob.PipelineTest do
       def concurrency, do: 2
 
       def perform(test_pid) do
-        send test_pid, {:waiting_job, self()}
+        send(test_pid, {:waiting_job, self()})
+
         receive do
           :finish -> :ok
         end
@@ -101,10 +142,10 @@ defmodule ExJob.PipelineTest do
       assert :ok == Pipeline.enqueue(pipeline, Job.new(SerializedJob, [self()]))
       refute_receive {:waiting_job, _job2}
 
-      send job1, :finish
+      send(job1, :finish)
       assert_receive {:waiting_job, job2}
 
-      send job2, :finish
+      send(job2, :finish)
     end
 
     test "runs in parallel" do
@@ -117,8 +158,8 @@ defmodule ExJob.PipelineTest do
       assert_receive {:waiting_job, job2}
       assert job1 != job2
 
-      send job1, :finish
-      send job2, :finish
+      send(job1, :finish)
+      send(job2, :finish)
     end
   end
 
@@ -134,7 +175,7 @@ defmodule ExJob.PipelineTest do
 
     test "increments processed count" do
       pid = self()
-      ack_fn = fn -> send pid, :ack end
+      ack_fn = fn -> send(pid, :ack) end
       {:ok, pid} = Pipeline.start_link(job_module: TestJob)
       job = Job.new(TestJob, [ack_fn])
 
@@ -151,7 +192,7 @@ defmodule ExJob.PipelineTest do
 
     test "increments failed count" do
       pid = self()
-      ack_fn = fn -> send pid, :ack end
+      ack_fn = fn -> send(pid, :ack) end
       {:ok, pid} = Pipeline.start_link(job_module: FailingTestJob)
       job = Job.new(FailingTestJob, [ack_fn])
 

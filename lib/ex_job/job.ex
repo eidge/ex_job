@@ -9,6 +9,7 @@ defmodule ExJob.Job do
   def new(job_module, args) do
     validate_arity!(job_module.arity(), args)
     group_by = apply(job_module, :group_by, args)
+
     struct!(
       __MODULE__,
       ref: make_ref(),
@@ -21,17 +22,31 @@ defmodule ExJob.Job do
 
   defp validate_arity!(arity, arguments) do
     arg_count = Enum.count(arguments)
+
     if arity != arg_count do
-      raise ArgumentError, "#{inspect(__MODULE__)}.perform/#{arity} takes #{arity} arguments but #{arg_count} arguments were given (arguments: #{inspect(arguments)})"
+      raise ArgumentError,
+            "#{inspect(__MODULE__)}.perform/#{arity} takes #{arity} arguments but #{arg_count} arguments were given (arguments: #{
+              inspect(arguments)
+            })"
     end
   end
 
   def run(job = %__MODULE__{}) do
     case apply(job.module, :perform, job.arguments) do
-      :ok -> :ok
-      :error -> :error
-      {:error, _} = error -> error
-      return_value -> raise ArgumentError, "Expected `#{job.module}.perform/n` to return :ok, :error or {:error, reason}, got #{inspect(return_value)}"
+      :ok ->
+        :ok
+
+      :error ->
+        :error
+
+      {:error, _} = error ->
+        error
+
+      return_value ->
+        raise ArgumentError,
+              "Expected `#{job.module}.perform/n` to return :ok, :error or {:error, reason}, got #{
+                inspect(return_value)
+              }"
     end
   end
 
@@ -55,6 +70,7 @@ defmodule ExJob.Job do
         :group_by -> @group_by_defined unquote(arg_count)
         _ -> nil
       end
+
       Kernel.def(unquote(call), unquote(expr))
     end
   end
@@ -67,8 +83,8 @@ defmodule ExJob.Job do
       import Kernel, except: [def: 1, def: 2]
       import unquote(__MODULE__)
 
-      Module.register_attribute __MODULE__, :perform_defined, accumulate: false
-      Module.register_attribute __MODULE__, :group_by_defined, accumulate: false
+      Module.register_attribute(__MODULE__, :perform_defined, accumulate: false)
+      Module.register_attribute(__MODULE__, :group_by_defined, accumulate: false)
 
       @perform_defined false
       @group_by_defined false
@@ -76,7 +92,7 @@ defmodule ExJob.Job do
       @before_compile unquote(__MODULE__)
 
       def concurrency, do: Application.get_env(:ex_job, :default_concurrency, 10)
-      defoverridable [concurrency: 0]
+      defoverridable concurrency: 0
     end
   end
 
@@ -99,22 +115,26 @@ defmodule ExJob.Job do
       end
 
       if !group_by_arity do
-        Kernel.def group_by(unquote_splicing(Macro.generate_arguments(arity, module))), do: nil
-        Kernel.def new_queue, do: SimpleQueue.new()
+        Kernel.def(group_by(unquote_splicing(Macro.generate_arguments(arity, module))), do: nil)
+        Kernel.def(new_queue, do: SimpleQueue.new())
       else
-        Kernel.def new_queue, do: GroupedQueue.new()
+        Kernel.def(new_queue, do: GroupedQueue.new())
       end
-      defoverridable [new_queue: 0]
+
+      defoverridable new_queue: 0
 
       if arity && group_by_arity && arity != group_by_arity do
         raise(
           CompileError,
           file: unquote(file),
-          description: "#{inspect(unquote(module))}.perform/#{unquote(arity)} and #{inspect(unquote(module))}.group_by/#{@group_by_defined} should have the same arity"
+          description:
+            "#{inspect(unquote(module))}.perform/#{unquote(arity)} and #{inspect(unquote(module))}.group_by/#{
+              @group_by_defined
+            } should have the same arity"
         )
       end
 
-      Kernel.def arity(), do: unquote(arity)
+      Kernel.def(arity(), do: unquote(arity))
     end
   end
 end

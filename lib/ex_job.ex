@@ -102,11 +102,13 @@ defmodule ExJob do
   passed to it.
   """
   def enqueue(job_module, args \\ [])
+
   def enqueue(job_module, args) when is_list(args) do
     job = ExJob.Job.new(job_module, args)
     {:ok, pipeline} = Central.pipeline_for(job_module)
     :ok = Pipeline.enqueue(pipeline, job)
   end
+
   def enqueue(job_module, args) do
     error = "expected list, got ExJob.enqueue(#{inspect(job_module)}, #{inspect(args)})"
     raise(ArgumentError, error)

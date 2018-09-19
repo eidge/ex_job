@@ -10,10 +10,10 @@ defmodule ExJob.Mixfile do
       app: @app,
       version: @version,
       elixir: "~> 1.5",
-      consolidate_protocols: Mix.env != :test,
+      consolidate_protocols: Mix.env() != :test,
       description: "Zero dependency, ultra-fast, background job processing library.",
       package: package(),
-      start_permanent: Mix.env == :prod,
+      start_permanent: Mix.env() == :prod,
       aliases: aliases(),
       deps: deps(),
       docs: docs()
@@ -40,7 +40,8 @@ defmodule ExJob.Mixfile do
   defp deps do
     [
       {:ex_doc, ">= 0.0.0", only: :dev},
-      {:gen_stage, "~> 0.13"},
+      {:benchee, "~> 0.11", only: :dev},
+      {:gen_stage, "~> 0.13"}
     ]
   end
 
@@ -52,8 +53,8 @@ defmodule ExJob.Mixfile do
 
   defp docs do
     [
-      main:       "ExJob",
-      extras:     ["README.md"]
+      main: "ExJob",
+      extras: ["README.md"]
     ]
   end
 end

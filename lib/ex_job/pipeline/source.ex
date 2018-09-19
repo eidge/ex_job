@@ -15,8 +15,16 @@ defmodule ExJob.Pipeline.Source do
   def init(job_module), do: {:producer, initial_state(job_module)}
 
   defp initial_state(job_module) do
-    {:ok, queue} = WAL.read(job_module)
-    %{queue: queue, demand: 0}
+    {:ok, queue, wal_size} = WAL.read(job_module)
+    snapshot_period = Application.get_env(:ex_job, :snapshot_period, 10_000)
+
+    %{
+      queue: queue,
+      demand: 0,
+      snapshot_period: snapshot_period,
+      last_snapshot: wal_size,
+      job_module: job_module
+    }
   end
 
   def enqueue(pid, job), do: GenStage.call(pid, {:enqueue, job})
@@ -39,6 +47,7 @@ defmodule ExJob.Pipeline.Source do
     :ok = WAL.append(Events.JobEnqueued.new(job))
     {:ok, queue} = Queue.enqueue(state.queue, job)
     state = %{state | queue: queue}
+    state = maybe_create_snapshot(state)
     async_emit_events()
     {:reply, :ok, [], state}
   end
@@ -57,7 +66,20 @@ defmodule ExJob.Pipeline.Source do
       processed: state.queue.processed_count,
       failed: state.queue.failed_count
     }
+
     {:reply, info, [], state}
+  end
+
+  defp maybe_create_snapshot(state = %{snapshot_period: period, last_snapshot: last_snapshot})
+       when period <= last_snapshot,
+       do: create_snapshot(state)
+
+  defp maybe_create_snapshot(state),
+    do: %{state | last_snapshot: state.last_snapshot + 1}
+
+  defp create_snapshot(state) do
+    WAL.compact(Events.QueueSnapshot.new(state.job_module, state.queue))
+    state
   end
 
   def handle_demand(demand, state) do
@@ -75,6 +97,7 @@ defmodule ExJob.Pipeline.Source do
 
   defp emit_events(state, events \\ [])
   defp emit_events(%{demand: 0} = state, events), do: {state, Enum.reverse(events)}
+
   defp emit_events(state, events) do
     case Queue.dequeue(state.queue) do
       {:ok, queue, job} ->
@@ -83,8 +106,11 @@ defmodule ExJob.Pipeline.Source do
         state = %{state | queue: queue, demand: demand}
         events = [job | events]
         emit_events(state, events)
-      {:wait, _} -> # probably worth it to change this to {:error, :wait}
+
+      # probably worth it to change this to {:error, :wait}
+      {:wait, _} ->
         {state, Enum.reverse(events)}
+
       {:error, :empty} ->
         {state, Enum.reverse(events)}
     end

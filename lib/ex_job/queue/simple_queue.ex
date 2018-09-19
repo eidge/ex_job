@@ -4,12 +4,12 @@ defmodule ExJob.Queue.SimpleQueue do
   defstruct [:pending, :working, processed_count: 0, failed_count: 0]
 
   def new do
-    %__MODULE__{pending: :queue.new, working: Map.new}
+    %__MODULE__{pending: :queue.new(), working: Map.new()}
   end
 
   def from_list(list) when is_list(list) do
     pending = :queue.from_list(list)
-    %__MODULE__{pending: pending, working: Map.new}
+    %__MODULE__{pending: pending, working: Map.new()}
   end
 end
 
@@ -22,11 +22,9 @@ defimpl ExJob.Queue, for: ExJob.Queue.SimpleQueue do
   end
 
   def dequeue(queue) do
-    with \
-      {{_value, job}, pending} <- :queue.out(queue.pending),
-      working <- Map.put(queue.working, job.ref, job),
-      queue <- %SimpleQueue{queue | pending: pending, working: working}
-    do
+    with {{_value, job}, pending} <- :queue.out(queue.pending),
+         working <- Map.put(queue.working, job.ref, job),
+         queue <- %SimpleQueue{queue | pending: pending, working: working} do
       {:ok, queue, job}
     else
       {:empty, _queue} -> {:error, :empty}
@@ -35,9 +33,11 @@ defimpl ExJob.Queue, for: ExJob.Queue.SimpleQueue do
 
   def done(queue, job, result) do
     if Map.has_key?(queue.working, job.ref) do
-      queue = queue
-      |> increment(map_result_to_count_key(result))
-      |> remove_from_working(job)
+      queue =
+        queue
+        |> increment(map_result_to_count_key(result))
+        |> remove_from_working(job)
+
       {:ok, queue}
     else
       raise(ExJob.Queue.NotWorkingError)
@@ -52,13 +52,15 @@ defimpl ExJob.Queue, for: ExJob.Queue.SimpleQueue do
   end
 
   def size(queue), do: size(queue, :pending)
+
   def size(queue, :pending) do
     pending_queue = Map.get(queue, :pending)
     :queue.len(pending_queue)
   end
+
   def size(queue, :working) do
     pending_map = Map.get(queue, :working)
-    Map.keys(pending_map) |> Enum.count
+    Map.keys(pending_map) |> Enum.count()
   end
 
   defp increment(queue, count_type) do

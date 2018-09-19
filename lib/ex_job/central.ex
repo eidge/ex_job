@@ -36,25 +36,28 @@ defmodule ExJob.Central do
 
   def info(pid \\ __MODULE__) do
     pipelines = pipelines(pid)
-    infos = Enum.map(pipelines, &(Pipeline.info(&1)))
+    infos = Enum.map(pipelines, &Pipeline.info(&1))
     info = reduce_infos(infos)
     %{info | queues: Enum.count(infos)}
   end
 
   defp pipelines(pid) do
     pid
-    |> Supervisor.which_children
+    |> Supervisor.which_children()
     |> Enum.map(fn {_, pid, _, _} -> pid end)
   end
 
   defp reduce_infos([]), do: empty_info()
+
   defp reduce_infos(infos) do
     Enum.reduce(infos, empty_info(), fn info, result ->
-      %{result |
-        pending: result.pending + info.pending,
-        working: result.working + info.working,
-        processed: result.processed + info.processed,
-        failed: result.failed + info.failed}
+      %{
+        result
+        | pending: result.pending + info.pending,
+          working: result.working + info.working,
+          processed: result.processed + info.processed,
+          failed: result.failed + info.failed
+      }
     end)
   end
 

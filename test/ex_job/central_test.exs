@@ -12,7 +12,11 @@ defmodule ExJob.CentralTest do
   end
 
   setup do
-    spec = %{id: WAL, start: {GenServer, :start_link, [ExJob.WAL, ".test_wal", [name: ExJob.WAL]]}}
+    spec = %{
+      id: WAL,
+      start: {GenServer, :start_link, [ExJob.WAL, ".test_wal", [name: ExJob.WAL]]}
+    }
+
     {:ok, _} = start_supervised(spec)
     :ok
   end
