@@ -10,7 +10,7 @@ defmodule ExJob.Pipeline do
 
   alias ExJob.Pipeline.{Source, Multiplexer}
 
-  def start_link(args \\ [])  do
+  def start_link(args \\ []) do
     job_module = Keyword.get(args, :job_module)
     opts = Keyword.get(args, :options, [])
     Supervisor.start_link(__MODULE__, job_module, opts)
@@ -40,9 +40,11 @@ defmodule ExJob.Pipeline do
   end
 
   defp source(supervisor) do
-    {_, pid, _, _} = supervisor
-    |> Supervisor.which_children
-    |> Enum.find(fn {_, _, _, modules} -> modules == [Source] end)
+    {_, pid, _, _} =
+      supervisor
+      |> Supervisor.which_children()
+      |> Enum.find(fn {_, _, _, modules} -> modules == [Source] end)
+
     pid
   end
 

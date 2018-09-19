@@ -33,6 +33,8 @@
       increment and getter methods?
     - Or implement it by listening to WAL events.
   - Start pipelines automatically based off of meta-programming
+  - Implement TestJob in an helper that can be reused in every test to reduce
+      duplication.
 
 - WAL
   - Configurable buffer size (0 - consistent, * - prone to inconsistency but
@@ -44,8 +46,9 @@
     - Make the WAL payload smaller
   - Snapshots
     - Run off of memory, when shutting down push a snapshot that includes the
-        current state. Change header to point continuation at that event.
+        current state.
   - Reduce each WAL event size by serializing smaller payloads
+  - Move to a WAL per Pipeline, rather than one WAL for everything!
 
 - Support distributed workers
   - If we separate the Queue from the Source, then we can have one machine with

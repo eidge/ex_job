@@ -5,10 +5,12 @@ defmodule ExJob.WAL.File do
 
   defstruct [:file]
 
-  def open(path) when is_binary(path), do: String.to_charlist(path) |> open
-  def open(path) do
-    Logger.info("Opening WAL file for: #{path}")
-    case :disk_log.open(file: path, name: path) do
+  def open(filename) when is_binary(filename), do: String.to_charlist(filename) |> open
+
+  def open(filename) do
+    Logger.info("Opening WAL file for: #{filename}")
+
+    case :disk_log.open(file: filename, name: filename) do
       {:ok, file} -> {:ok, %__MODULE__{file: file}}
       {:repaired, file, {:recovered, _}, {:badbytes, 0}} -> {:ok, %__MODULE__{file: file}}
       error -> error
@@ -17,6 +19,10 @@ defmodule ExJob.WAL.File do
 
   def close(%__MODULE__{file: file}) do
     :disk_log.close(file)
+  end
+
+  def truncate(%__MODULE__{file: file}) do
+    :ok = :disk_log.truncate(file)
   end
 
   def append(%__MODULE__{file: file}, event) do
@@ -29,10 +35,12 @@ defmodule ExJob.WAL.File do
   end
 
   defp do_read(file, continuation, events \\ [])
+
   defp do_read(file, :eof, events) do
     Logger.info("Read #{Enum.count(events)} events for: #{file}")
     {:ok, events}
   end
+
   defp do_read(file, continuation, events) do
     case :disk_log.chunk(file, continuation) do
       {:error, reason} -> {:error, reason}

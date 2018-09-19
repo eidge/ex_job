@@ -14,4 +14,3 @@ defmodule ExJob.Pipeline.Sink do
     end
   end
 end
-

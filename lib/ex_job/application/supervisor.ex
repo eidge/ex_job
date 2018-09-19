@@ -14,7 +14,7 @@ defmodule ExJob.Application.Supervisor do
   defp children do
     [
       {WAL, wal_path()},
-      {Central, name: Central},
+      {Central, name: Central}
     ]
   end
 

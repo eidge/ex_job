@@ -1,12 +1,4 @@
 defmodule ExJob.WAL.Events do
-  defmodule FileCreated do
-    defstruct [:job_module]
-
-    def new(job_module) when is_atom(job_module) do
-      %__MODULE__{job_module: job_module}
-    end
-  end
-
   defmodule JobEnqueued do
     defstruct [:job_module, :job]
 
@@ -28,6 +20,14 @@ defmodule ExJob.WAL.Events do
 
     def new(job = %ExJob.Job{}, state) when is_atom(state) do
       %__MODULE__{job_module: job.module, job: job, state: state}
+    end
+  end
+
+  defmodule QueueSnapshot do
+    defstruct [:job_module, :snapshot]
+
+    def new(job_module, snapshot) when is_atom(job_module) do
+      %__MODULE__{job_module: job_module, snapshot: snapshot}
     end
   end
 end

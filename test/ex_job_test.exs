@@ -16,14 +16,15 @@ defmodule ExJobTest do
     use ExJob.Job
 
     def perform(pid) do
-      send pid, {:ping, self()}
+      send(pid, {:ping, self()})
+
       receive do
         :die -> :ok
       end
     end
 
     def terminate(pid) do
-      send pid, :die
+      send(pid, :die)
     end
   end
 
@@ -31,14 +32,15 @@ defmodule ExJobTest do
     use ExJob.Job
 
     def perform(pid) do
-      send pid, {:ping, self()}
+      send(pid, {:ping, self()})
+
       receive do
         :die -> :ok
       end
     end
 
     def terminate(pid) do
-      send pid, :die
+      send(pid, :die)
     end
   end
 
@@ -48,14 +50,15 @@ defmodule ExJobTest do
     def group_by(key, _), do: key
 
     def perform(key, pid) do
-      send pid, {:ping, self(), key}
+      send(pid, {:ping, self(), key})
+
       receive do
         :die -> :ok
       end
     end
 
     def terminate(pid) do
-      send pid, :die
+      send(pid, :die)
     end
   end
 
@@ -73,7 +76,7 @@ defmodule ExJobTest do
   end
 
   describe "persistence" do
-    alias ExJob.WAL.Events.{FileCreated, JobEnqueued, JobStarted, JobDone}
+    alias ExJob.WAL.Events.{JobEnqueued, JobStarted, JobDone}
 
     defmodule WALJob do
       use ExJob.Job
@@ -88,32 +91,33 @@ defmodule ExJobTest do
 
     test "writes to WAL when is successful" do
       :ok = ExJob.enqueue(WALJob, [:ok])
-      events = wait_for_wal_events(5)
+      events = wait_for_wal_events(4)
+
       assert [
-        %FileCreated{},
-        %JobEnqueued{},
-        %JobStarted{},
-        %WALJob{},
-        %JobDone{state: :success}
-      ] = events
+               %JobEnqueued{},
+               %JobStarted{},
+               %WALJob{},
+               %JobDone{state: :success}
+             ] = events
     end
 
     test "writes to WAL when it fails" do
       :ok = ExJob.enqueue(WALJob, [:error])
-      events = wait_for_wal_events(5)
+      events = wait_for_wal_events(4)
+
       assert [
-        %FileCreated{},
-        %JobEnqueued{},
-        %JobStarted{},
-        %WALJob{},
-        %JobDone{state: :failure}
-      ] = events
+               %JobEnqueued{},
+               %JobStarted{},
+               %WALJob{},
+               %JobDone{state: :failure}
+             ] = events
     end
 
     defp wait_for_wal_events(n, timeout \\ 100, elapsed \\ 0) do
       interval = 10
       {:ok, events} = ExJob.WAL.events(WALJob)
       count = Enum.count(events)
+
       if count == n || elapsed > timeout do
         assert count == n
         events
@@ -179,13 +183,15 @@ defmodule ExJobTest do
         :ok = ExJob.enqueue(InvalidJob)
         :timer.sleep(20)
       end
-      assert capture_log(enqueue_invalid_job_fn) =~ "Expected `Elixir.ExJobTest.InvalidJob.perform/n` to return :ok, :error or {:error, reason}, got :invalid_return_value"
+
+      assert capture_log(enqueue_invalid_job_fn) =~
+               "Expected `Elixir.ExJobTest.InvalidJob.perform/n` to return :ok, :error or {:error, reason}, got :invalid_return_value"
     end
 
     test "raises helpful exception if second argument is not a list" do
       assert_raise ArgumentError,
-        "expected list, got ExJob.enqueue(ExJobTest.TestJob, \"not a list\")",
-        fn -> ExJob.enqueue(TestJob, "not a list") end
+                   "expected list, got ExJob.enqueue(ExJobTest.TestJob, \"not a list\")",
+                   fn -> ExJob.enqueue(TestJob, "not a list") end
     end
   end
 
@@ -197,6 +203,7 @@ defmodule ExJobTest do
 
       def perform(pid) do
         send(pid, {:success_job_start, self()})
+
         receive do
           :finish_job_success -> :ok
           :finish_job_error -> :error
@@ -235,7 +242,7 @@ defmodule ExJobTest do
       :ok = ExJob.enqueue(StepJob, [self()])
       :ok = ExJob.enqueue(StepJob, [self()])
 
-      {:ok, pid1} = StepJob.wait_for_job_to_start
+      {:ok, pid1} = StepJob.wait_for_job_to_start()
 
       :timer.sleep(10)
       info = ExJob.info()
@@ -246,7 +253,7 @@ defmodule ExJobTest do
 
       :ok = StepJob.finish_job(pid1)
 
-      {:ok, pid2} = StepJob.wait_for_job_to_start
+      {:ok, pid2} = StepJob.wait_for_job_to_start()
       :ok = StepJob.fail_job(pid2)
 
       :timer.sleep(10)

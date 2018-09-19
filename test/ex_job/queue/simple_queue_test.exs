@@ -14,7 +14,7 @@ defmodule ExJob.Queue.SimpleQueueTest do
 
   describe "enqueue/2" do
     test "enqueues a job" do
-      queue = SimpleQueue.new
+      queue = SimpleQueue.new()
       assert Queue.size(queue) == 0
       assert {:ok, queue} = Queue.enqueue(queue, job())
       assert Queue.size(queue) == 1
@@ -23,7 +23,7 @@ defmodule ExJob.Queue.SimpleQueueTest do
 
   describe "dequeue/1" do
     test "dequeues jobs in FIFO order" do
-      queue = SimpleQueue.new
+      queue = SimpleQueue.new()
       {:ok, queue} = Queue.enqueue(queue, job(1))
       {:ok, queue} = Queue.enqueue(queue, job(2))
       assert {:ok, queue, %Job{arguments: [1]}} = Queue.dequeue(queue)
@@ -45,14 +45,14 @@ defmodule ExJob.Queue.SimpleQueueTest do
     end
 
     test "returns error if queue is empty" do
-      queue = SimpleQueue.new
+      queue = SimpleQueue.new()
       assert {:error, :empty} = Queue.dequeue(queue)
     end
   end
 
   describe "done/3" do
     test "removes item from the working queue" do
-      queue = SimpleQueue.new
+      queue = SimpleQueue.new()
       assert Queue.size(queue) == 0
       assert Queue.size(queue, :working) == 0
 
@@ -89,7 +89,8 @@ defmodule ExJob.Queue.SimpleQueueTest do
     end
 
     test "throws error if job is not currently working" do
-      queue = SimpleQueue.new
+      queue = SimpleQueue.new()
+
       assert_raise ExJob.Queue.NotWorkingError, fn ->
         Queue.done(queue, job(), :success)
       end
@@ -111,7 +112,7 @@ defmodule ExJob.Queue.SimpleQueueTest do
 
   describe "size/2" do
     test "returns size of pending jobs by default" do
-      queue = SimpleQueue.new
+      queue = SimpleQueue.new()
       assert Queue.size(queue) == 0
 
       {:ok, queue} = Queue.enqueue(queue, job(1))
@@ -122,7 +123,7 @@ defmodule ExJob.Queue.SimpleQueueTest do
     end
 
     test "returns size of working jobs" do
-      queue = SimpleQueue.new
+      queue = SimpleQueue.new()
       assert Queue.size(queue, :working) == 0
 
       {:ok, queue} = Queue.enqueue(queue, job(1))
