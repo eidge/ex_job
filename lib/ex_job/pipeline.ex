@@ -27,12 +27,15 @@ defmodule ExJob.Pipeline do
 
   defp children_for(job_module) do
     [
-      {Source, job_module: job_module, options: [name: source_name(job_module)]},
-      {Multiplexer, job_module: job_module, subscribe_to: [source_name(job_module)]}
+      {Source, job_module: job_module, options: [name: source_name_via(job_module)]},
+      {Multiplexer, job_module: job_module, subscribe_to: [source_name_via(job_module)]}
     ]
   end
 
-  defp source_name(job_module), do: String.to_atom("#{job_module}Source")
+  defp source_name_via(job_module),
+    do: {:via, Registry, {ExJob.Registry, source_name(job_module)}}
+
+  defp source_name(job_module), do: "#{job_module}Source"
 
   def enqueue(supervisor, job) do
     source = source(supervisor)

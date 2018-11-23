@@ -23,12 +23,13 @@ defmodule ExJob.PipelineTest do
   end
 
   setup do
-    spec = %{
-      id: WAL,
-      start: {GenServer, :start_link, [ExJob.WAL, ".test_wal", [name: ExJob.WAL]]}
-    }
+    {:ok, _} =
+      start_supervised(%{
+        id: WAL,
+        start: {GenServer, :start_link, [ExJob.WAL, ".test_wal", [name: ExJob.WAL]]}
+      })
 
-    {:ok, _} = start_supervised(spec)
+    {:ok, _} = start_supervised({Registry, name: ExJob.Registry, keys: :unique})
     :ok
   end
 

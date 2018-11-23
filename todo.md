@@ -20,7 +20,6 @@
 - Rotate WAL.State logs
 
 - Refactor:
-  - Use a registry to process names rather than dynamically creating atoms
   - GroupedQueue is currently a mess implemented during a spike to make the
     tests pass.
     - Make the code cleaner
