@@ -14,9 +14,9 @@ defmodule ExJob.Central do
   end
 
   def pipeline_for(central \\ __MODULE__, job_module) when is_atom(job_module) do
-    case Process.whereis(pipeline_name(job_module)) do
-      nil -> start_pipeline(central, job_module)
-      pid when is_pid(pid) -> {:ok, pid}
+    case Registry.lookup(ExJob.Registry, pipeline_name(job_module)) do
+      [] -> start_pipeline(central, job_module)
+      [{pid, nil}] when is_pid(pid) -> {:ok, pid}
     end
   end
 
@@ -29,10 +29,13 @@ defmodule ExJob.Central do
   end
 
   defp pipeline_spec(job_module) do
-    {Pipeline, job_module: job_module, options: [name: pipeline_name(job_module)]}
+    {Pipeline, job_module: job_module, options: [name: pipeline_name_via(job_module)]}
   end
 
-  defp pipeline_name(job_module), do: String.to_atom("#{job_module}Pipeline")
+  defp pipeline_name_via(job_module),
+    do: {:via, Registry, {ExJob.Registry, pipeline_name(job_module)}}
+
+  defp pipeline_name(job_module), do: "#{job_module}Pipeline"
 
   def info(pid \\ __MODULE__) do
     pipelines = pipelines(pid)

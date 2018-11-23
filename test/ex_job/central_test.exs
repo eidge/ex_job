@@ -12,21 +12,24 @@ defmodule ExJob.CentralTest do
   end
 
   setup do
-    spec = %{
-      id: WAL,
-      start: {GenServer, :start_link, [ExJob.WAL, ".test_wal", [name: ExJob.WAL]]}
-    }
+    {:ok, _} =
+      start_supervised(%{
+        id: WAL,
+        start: {GenServer, :start_link, [ExJob.WAL, ".test_wal", [name: ExJob.WAL]]}
+      })
 
-    {:ok, _} = start_supervised(spec)
+    {:ok, _} = start_supervised({Registry, name: ExJob.Registry, keys: :unique})
+
     :ok
   end
 
   describe "pipeline_for/2" do
     test "starts named pipeline for job if it doesn't exist yet" do
       {:ok, central} = Central.start_link([])
-      refute Process.whereis(ExJob.CentralTest.TestJobPipeline)
+      pipeline_name = ExJob.CentralTest.TestJobPipeline |> to_string
+      assert [] = Registry.lookup(ExJob.Registry, pipeline_name)
       {:ok, _} = Central.pipeline_for(central, TestJob)
-      assert Process.whereis(ExJob.CentralTest.TestJobPipeline)
+      assert [{_, _}] = Registry.lookup(ExJob.Registry, pipeline_name)
     end
 
     test "returns existing pipeline" do
