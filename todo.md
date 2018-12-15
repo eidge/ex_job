@@ -19,6 +19,11 @@
 
 - Rotate WAL.State logs
 
+- Control back-pressure
+  - Be able to run in an open-loop (no back pressure, normal job behaviour)
+  - Be able to provide back pressure: Jobs take longer to enqueue to prevent
+      overflowing the system.
+
 - Refactor:
   - GroupedQueue is currently a mess implemented during a spike to make the
     tests pass.
