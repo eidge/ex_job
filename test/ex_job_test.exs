@@ -84,7 +84,8 @@ defmodule ExJobTest do
       defstruct [:job_module]
 
       def perform(return_value) do
-        ExJob.WAL.append(%WALJob{job_module: WALJob})
+        {:ok, wal} = ExJob.Pipeline.wal(__MODULE__)
+        ExJob.WAL.append(wal, %WALJob{job_module: WALJob})
         return_value
       end
     end
@@ -115,7 +116,8 @@ defmodule ExJobTest do
 
     defp wait_for_wal_events(n, timeout \\ 100, elapsed \\ 0) do
       interval = 10
-      {:ok, events} = ExJob.WAL.events(WALJob)
+      {:ok, wal} = ExJob.Pipeline.wal(WALJob)
+      {:ok, events} = ExJob.WAL.events(wal)
       count = Enum.count(events)
 
       if count == n || elapsed > timeout do

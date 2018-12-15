@@ -10,11 +10,20 @@ defmodule ExJob.WAL.File do
   def open(filename) do
     Logger.info("Opening WAL file for: #{filename}")
 
+    ensure_directory_exists!(filename)
+
     case :disk_log.open(file: filename, name: filename) do
       {:ok, file} -> {:ok, %__MODULE__{file: file}}
       {:repaired, file, {:recovered, _}, {:badbytes, 0}} -> {:ok, %__MODULE__{file: file}}
       error -> error
     end
+  end
+
+  defp ensure_directory_exists!(path) do
+    :ok =
+      path
+      |> Path.dirname()
+      |> File.mkdir_p()
   end
 
   def close(%__MODULE__{file: file}) do

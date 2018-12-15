@@ -23,12 +23,6 @@ defmodule ExJob.PipelineTest do
   end
 
   setup do
-    {:ok, _} =
-      start_supervised(%{
-        id: WAL,
-        start: {GenServer, :start_link, [ExJob.WAL, ".test_wal", [name: ExJob.WAL]]}
-      })
-
     {:ok, _} = start_supervised({Registry, name: ExJob.Registry, keys: :unique})
     :ok
   end
@@ -59,18 +53,22 @@ defmodule ExJob.PipelineTest do
         :timer.sleep(:infinity)
       end
 
-      {:ok, pid} = Pipeline.start_link(job_module: TestJob)
+      {:ok, _} = ExJob.WAL.start_link(path: ".ex_job.test.wal", name: PersistenceTestWAL)
+      {:ok, pid} = Pipeline.start_link(job_module: TestJob, wal: PersistenceTestWAL)
+
+      assert %{working: 0, failed: 0} = Pipeline.info(pid)
+
       job = Job.new(TestJob, [wait_forever_fn])
       :ok = Pipeline.enqueue(pid, job)
-
       assert_receive :ack
+
       assert %{working: 1, failed: 0} = Pipeline.info(pid)
 
       # kill currently working job
       :ok = Pipeline.stop(pid)
       refute Process.alive?(pid)
 
-      {:ok, pid} = Pipeline.start_link(job_module: TestJob)
+      {:ok, pid} = Pipeline.start_link(job_module: TestJob, wal: PersistenceTestWAL)
       assert %{working: 0, failed: 1} = Pipeline.info(pid)
     end
 
@@ -86,6 +84,7 @@ defmodule ExJob.PipelineTest do
       job = fn -> Job.new(TestJob, [wait_forever_fn]) end
 
       {:ok, pid} = Pipeline.start_link(job_module: TestJob)
+      {:ok, wal} = Pipeline.wal(TestJob)
 
       :ok = Pipeline.enqueue(pid, job.())
       :ok = Pipeline.enqueue(pid, job.())
@@ -94,13 +93,13 @@ defmodule ExJob.PipelineTest do
       assert_receive :ack
       assert_receive :ack
 
-      {:ok, events} = ExJob.WAL.events(TestJob)
+      {:ok, events} = ExJob.WAL.events(wal)
       refute Enum.any?(events, &match?(%Events.QueueSnapshot{}, &1))
 
       :ok = Pipeline.enqueue(pid, job.())
       assert_receive :ack
 
-      {:ok, events} = ExJob.WAL.events(TestJob)
+      {:ok, events} = ExJob.WAL.events(wal)
       assert Enum.any?(events, &match?(%Events.QueueSnapshot{}, &1))
     end
   end

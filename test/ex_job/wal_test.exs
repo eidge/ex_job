@@ -47,26 +47,26 @@ defmodule ExJob.WALTest do
           Application.put_env(:ex_job, :wal_file_mod, @default_file_mod)
         end)
 
-        {:ok, wal} = WAL.start_link("#{@wal_path}/#{file_mod}", [])
+        {:ok, wal} = WAL.start_link(path: "#{@wal_path}/#{file_mod}", name: nil)
         %{wal: wal}
       end
 
       test "appends events to WAL", ctx do
         event = new_event(1)
         :ok = WAL.append(ctx.wal, event)
-        {:ok, events} = WAL.events(ctx.wal, TestJob)
+        {:ok, events} = WAL.events(ctx.wal)
         assert ^event = List.last(events)
       end
     end
 
     describe "#{file_mod}: events/1" do
       setup do
-        {:ok, wal} = WAL.start_link(@wal_path, [])
+        {:ok, wal} = WAL.start_link(path: @wal_path, name: nil)
         %{wal: wal}
       end
 
       test "starts empty", ctx do
-        assert {:ok, []} = WAL.events(ctx.wal, TestJob)
+        assert {:ok, []} = WAL.events(ctx.wal)
       end
 
       test "reads WAL contents", ctx do
@@ -78,7 +78,7 @@ defmodule ExJob.WALTest do
         assert :ok = WAL.append(ctx.wal, event2)
         assert :ok = WAL.append(ctx.wal, event3)
 
-        {:ok, events} = WAL.events(ctx.wal, TestJob)
+        {:ok, events} = WAL.events(ctx.wal)
         assert Enum.count(events) == 3
         assert Enum.at(events, 0) == event1
         assert Enum.at(events, 1) == event2
@@ -86,21 +86,21 @@ defmodule ExJob.WALTest do
       end
 
       test "resets file pointer", ctx do
-        assert {:ok, []} = WAL.events(ctx.wal, TestJob)
+        assert {:ok, []} = WAL.events(ctx.wal)
 
         event1 = new_event(1)
         :ok = WAL.append(ctx.wal, event1)
-        assert {:ok, [^event1]} = WAL.events(ctx.wal, TestJob)
+        assert {:ok, [^event1]} = WAL.events(ctx.wal)
 
         event2 = new_event(2)
         :ok = WAL.append(ctx.wal, event2)
-        assert {:ok, [^event1, ^event2]} = WAL.events(ctx.wal, TestJob)
+        assert {:ok, [^event1, ^event2]} = WAL.events(ctx.wal)
       end
     end
 
     describe "#{file_mod}: read/1" do
       setup do
-        {:ok, wal} = WAL.start_link(@wal_path, [])
+        {:ok, wal} = WAL.start_link(path: @wal_path, name: nil)
         %{wal: wal}
       end
 

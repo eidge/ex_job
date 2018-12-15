@@ -8,18 +8,20 @@ defmodule ExJob.Pipeline.Source do
 
   def start_link(args \\ []) do
     job_module = Keyword.get(args, :job_module)
+    wal = Keyword.get(args, :wal)
     opts = Keyword.get(args, :options, [])
-    GenStage.start_link(__MODULE__, job_module, opts)
+    GenStage.start_link(__MODULE__, {job_module, wal}, opts)
   end
 
-  def init(job_module), do: {:producer, initial_state(job_module)}
+  def init({job_module, wal}), do: {:producer, initial_state(job_module, wal)}
 
-  defp initial_state(job_module) do
-    {:ok, queue, wal_size} = WAL.read(job_module)
+  defp initial_state(job_module, wal) do
+    {:ok, queue, wal_size} = WAL.read(wal, job_module)
     snapshot_period = Application.get_env(:ex_job, :snapshot_period, 10_000)
 
     %{
       queue: queue,
+      wal: wal,
       demand: 0,
       snapshot_period: snapshot_period,
       last_snapshot: wal_size,
@@ -30,12 +32,10 @@ defmodule ExJob.Pipeline.Source do
   def enqueue(pid, job), do: GenStage.call(pid, {:enqueue, job})
 
   def notify_success(pid, job) do
-    WAL.append(Events.JobDone.new(job, :success))
     GenStage.call(pid, {:notify, job, :success})
   end
 
   def notify_failure(pid, job) do
-    WAL.append(Events.JobDone.new(job, :failure))
     GenStage.call(pid, {:notify, job, :failure})
   end
 
@@ -44,7 +44,7 @@ defmodule ExJob.Pipeline.Source do
   end
 
   def handle_call({:enqueue, job}, _from, state) do
-    :ok = WAL.append(Events.JobEnqueued.new(job))
+    :ok = WAL.append(state.wal, Events.JobEnqueued.new(job))
     {:ok, queue} = Queue.enqueue(state.queue, job)
     state = %{state | queue: queue}
     state = maybe_create_snapshot(state)
@@ -53,6 +53,7 @@ defmodule ExJob.Pipeline.Source do
   end
 
   def handle_call({:notify, job, result}, _from, state) do
+    :ok = WAL.append(state.wal, Events.JobDone.new(job, result))
     {:ok, queue} = Queue.done(state.queue, job, result)
     state = %{state | queue: queue}
     async_emit_events()
@@ -77,8 +78,8 @@ defmodule ExJob.Pipeline.Source do
   defp maybe_create_snapshot(state),
     do: %{state | last_snapshot: state.last_snapshot + 1}
 
-  defp create_snapshot(state) do
-    WAL.compact(Events.QueueSnapshot.new(state.job_module, state.queue))
+  defp create_snapshot(state = %{wal: wal, job_module: job_module, queue: queue}) do
+    :ok = WAL.compact(wal, Events.QueueSnapshot.new(job_module, queue))
     state
   end
 
@@ -101,7 +102,7 @@ defmodule ExJob.Pipeline.Source do
   defp emit_events(state, events) do
     case Queue.dequeue(state.queue) do
       {:ok, queue, job} ->
-        :ok = WAL.append(Events.JobStarted.new(job))
+        :ok = WAL.append(state.wal, Events.JobStarted.new(job))
         demand = state.demand - 1
         state = %{state | queue: queue, demand: demand}
         events = [job | events]
