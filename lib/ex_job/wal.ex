@@ -4,45 +4,51 @@ defmodule ExJob.WAL do
   alias ExJob.{WAL, Queue}
   alias ExJob.WAL.{State, Events}
 
-  def start_link(path, options \\ [name: __MODULE__]) do
-    GenServer.start_link(__MODULE__, path, options)
+  def start_link(args \\ []) do
+    path = Keyword.get(args, :path)
+    name = Keyword.get(args, :name, __MODULE__)
+    GenServer.start_link(__MODULE__, path, name: name)
   end
 
   def init(path) do
     file_mod = Application.get_env(:ex_job, :wal_file_mod, WAL.File)
-    {:ok, %{file_mod: file_mod, path: path, files: %{}}}
+    file = create_file(path, file_mod)
+    {:ok, %{file_mod: file_mod, file: file}}
   end
 
-  def append(wal \\ __MODULE__, event) do
+  defp create_file(file_path, file_mod) do
+    {:ok, file} = State.restore_or_create(file_path, file_mod: file_mod)
+    file
+  end
+
+  def append(wal, event) do
     GenServer.call(wal, {:append, event})
   end
 
-  def events(wal \\ __MODULE__, job_module) do
-    GenServer.call(wal, {:events, job_module})
+  def events(wal) do
+    GenServer.call(wal, :events)
   end
 
-  def read(wal \\ __MODULE__, job_module) do
+  def read(wal, job_module) do
     GenServer.call(wal, {:read, job_module})
   end
 
-  def compact(wal \\ __MODULE__, event = %Events.QueueSnapshot{}) do
+  def compact(wal, event = %Events.QueueSnapshot{}) do
     GenServer.call(wal, {:compact, event})
   end
 
   def handle_call({:append, event}, _from, state) do
-    {state, file} = find_or_create_file(state, event)
-    :ok = state.file_mod.append(file.current_file, event)
+    :ok = state.file_mod.append(state.file.current_file, event)
     {:reply, :ok, state}
   end
 
-  def handle_call({:events, job_module}, _from, state) do
-    events = read_events(state, job_module)
+  def handle_call(:events, _from, state) do
+    events = read_events(state)
     {:reply, {:ok, events}, state}
   end
 
   def handle_call({:read, job_module}, _from, state) do
-    {state, _file} = find_or_create_file(state, %{job_module: job_module})
-    events = read_events(state, job_module)
+    events = read_events(state)
     wal_size = Enum.count(events)
     queue = apply_events(job_module.new_queue(), events)
     queue = fail_working_jobs(queue)
@@ -50,37 +56,13 @@ defmodule ExJob.WAL do
   end
 
   def handle_call({:compact, event}, _from, state) do
-    {state, file} = find_or_create_file(state, event)
-    {:ok, file} = State.compact(file, event)
-    state = put_in(state, [:files, event.job_module], file)
+    {:ok, file} = State.compact(state.file, event)
+    state = %{state | file: file}
     {:reply, :ok, state}
   end
 
-  defp find_or_create_file(state, event) do
-    file = Map.get(state.files, event.job_module)
-
-    if file do
-      {state, file}
-    else
-      file = create_file(state, event)
-      state = put_in(state, [:files, event.job_module], file)
-      {state, file}
-    end
-  end
-
-  defp create_file(state, %{job_module: job_module}) do
-    file_path = file_path(state.path, job_module)
-    {:ok, file} = State.restore_or_create(file_path, file_mod: state.file_mod)
-    file
-  end
-
-  defp file_path(path, job_module) do
-    module_file = job_module |> to_string |> String.replace(".", "") |> Macro.underscore()
-    Path.join(path, module_file)
-  end
-
-  defp read_events(state, job_module) do
-    with {:ok, file} <- Map.fetch(state.files, job_module),
+  defp read_events(state) do
+    with {:ok, file} <- Map.fetch(state, :file),
          {:ok, events} <- state.file_mod.read(file.current_file) do
       events
     else

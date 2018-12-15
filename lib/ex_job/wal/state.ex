@@ -5,15 +5,9 @@ defmodule ExJob.WAL.State do
   Restore WAL state from existing in-disk data or initialize and store new state.
   """
   def restore_or_create(path, file_mod: file_mod) do
-    ensure_directory_exists!(path)
-
     build_state(path, file_mod)
     |> open_state_file!
     |> maybe_restore_state
-  end
-
-  defp ensure_directory_exists!(path) do
-    :ok = File.mkdir_p(path)
   end
 
   defp build_state(path, file_mod) when is_binary(path) do
